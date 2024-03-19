@@ -383,5 +383,64 @@ Using the code above as a guide, create code to estimate uncertainty based on th
 Answer with text, code, and plots the following questions
 
 -   Plot the forecast with the combined uncertainty.
+```{r}
+#| warning: FALSE
+#| fig-cap: Forecast with combined uncertainty
+#| label: fig-combo-unc2
+combined_df |> 
+  filter(variable %in% c("lai", "wood", "som", "nee")) |> 
+  summarise(median = median(prediction, na.rm = TRUE), 
+            upper90 = quantile(prediction, 0.95, na.rm = TRUE),
+            lower90 = quantile(prediction, 0.05, na.rm = TRUE),
+            .by = c("datetime", "variable")) |> 
+  ggplot(aes(x = datetime)) +
+  geom_ribbon(aes(ymin = lower90, ymax = upper90), alpha = 0.7) +
+  geom_line(aes(y = median)) +
+  facet_wrap(~variable, scale = "free") +
+  theme_bw()
+```
 
 -   If you calculate the variance of the combined uncertainty and compared to the sum of the individual variances, do they match? What does it mean if they are different?
+
+```{r}
+#variance of combined uncertainty
+var_df_combo.unc<-combined_df %>% group_by(variable, datetime) %>%
+  summarize(combo.unc=var(prediction))
+
+#sum of individual variances
+var_df_sum.var<-var_df %>% group_by(variable, datetime) %>%
+  summarize(sum.var=sum(variance))
+
+#comparison of variances
+var.comparison<-left_join(var_df_combo.unc, var_df_sum.var, by=c('variable', 'datetime'))
+
+var.comparison$var.diff<-var.comparison$combo.unc-var.comparison$sum.var
+var.comparison
+# total_uncertainty<-NULL
+# sim_dates.2<-sim_dates[-1]
+# for(j in sim_dates.2){
+# variance.j<-var_df %>% filter(datetime == j) %>% 
+#   group_by(variable, datetime) %>% 
+#   summarize(var.sum=sum(variance))
+# 
+# total_uncertainty<-rbind(total_uncertainty, variance.j)
+# }
+```
+The variance of the combined uncertainty and the sum of the individual variances do not match, as shown in the var.diff column of the var.comparison dataframe. Often, the sum of individual variances is greater than the variance of the combine uncertainty. This means that there is overlap in the variances, which is accounted for in the variance of combined uncertainty but not in the sum of individual variances. Combining all sources of uncertainty produces a smaller variance, so multiple sources of uncertainty produce noise in similar regions. @fig-combo-unc2-parsed depicts this overlap in uncertainties. I would expect, therefore, that adding individual variances would greatly increase variance because the overlap is not accounted for in this approach. 
+
+```{r}
+#| warning: FALSE
+#| fig-cap: Forecast with all sources of uncertainty, with uncertainties separated by color. 
+#| label: fig-combo-unc2-parsed
+combined_df %>% filter(variable %in% c("lai", "wood", "som", "nee")) %>%
+  summarise(median = median(prediction, na.rm = TRUE), 
+            upper90 = quantile(prediction, 0.95, na.rm = TRUE),
+            lower90 = quantile(prediction, 0.05, na.rm = TRUE),
+            .by = c("datetime", "model_id", "variable")) %>%
+  ggplot(aes(x = datetime)) +
+  geom_ribbon(aes(ymin = lower90, ymax = upper90, group=model_id, fill=model_id), alpha = 0.3) +
+  scale_fill_manual(values=c("goldenrod2", "gray30", "blue", "red"), name="uncertainty source")+
+  geom_line(aes(y = median)) +
+  facet_wrap(~variable, scale = "free") +
+  theme_bw()
+```
