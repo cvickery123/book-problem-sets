@@ -303,39 +303,49 @@ var_df<-combined_df %>%
 Answer with text, code, and plots the following questions
 
 1)  1 day-ahead, what the largest source of uncertainty for a flux (nee)? for a state (wood)?
+
 ```{r}
 var_df %>% filter(variable=="nee", datetime=="2023-11-16")
 ```
-The largest source of uncertainty for a flux (NEE) one day ahead is driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=2. Process uncertainty has a variance of zero at datetime t=2. 
+
+The largest source of uncertainty for a flux (NEE) one day ahead is driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=2. Process uncertainty has a variance of zero at datetime t=2.
+
 ```{r}
 var_df %>% filter(variable=="wood", datetime=="2023-11-16")
 ```
-The largest source of uncertainty for a state (wood) one day ahead is initial condition uncertainty, based on the fact that initial condition has the largest variance around the mean for datetime t=2. 
 
+The largest source of uncertainty for a state (wood) one day ahead is initial condition uncertainty, based on the fact that initial condition has the largest variance around the mean for datetime t=2.
 
 2)  10 days-ahead, what is the largest source of uncertainty for a flux (nee)? for a state (wood)?
+
 ```{r}
 var_df %>% filter(variable=="nee", datetime=="2023-11-25")
 ```
-The largest source of uncertainty for a flux (NEE) ten days ahead is again driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=10. 
+
+The largest source of uncertainty for a flux (NEE) ten days ahead is again driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=10.
+
 ```{r}
 var_df %>% filter(variable=="wood", datetime=="2023-11-25")
 ```
+
 The largest source of uncertainty for a state (wood) ten days ahead is initial condition uncertainty, based on the fact that initial condition has the largest variance around the mean for datetime t=10.
 
-
 3)  30 days-ahead, what is the largest source of uncertainty for a flux (nee)? for a state (wood)?
+
 ```{r}
 var_df %>% filter(variable=="nee", datetime=="2023-12-15")
 ```
-The largest source of uncertainty for a flux (NEE) thirty days ahead is again driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=30. 
+
+The largest source of uncertainty for a flux (NEE) thirty days ahead is again driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=30.
+
 ```{r}
 var_df %>% filter(variable=="wood", datetime=="2023-12-15")
 ```
+
 The largest source of uncertainty for a state (wood) thirty days ahead is again initial condition uncertainty, based on the fact that initial condition has the largest variance around the mean for datetime t=30.
 
+The consistency across time steps for the largest contributions to uncertainty are confirmed when I plot uncertainty for each variable. @fig-nee-unc2 shows driver uncertainty as the widest (greatest) variance compared to other uncertainty sources for NEE. @fig-wood-unc2 shows initial condition uncertainty as the widest (greatest) variance compared to other uncertainty sources for Wood.
 
-The consistency across timesteps for the largest contributers to uncertainty are confirmed when I plot uncertainty for each variable. @fig-nee-unc2 shows driver uncertainty as the widest (greatest) variance compared to other uncertainty sources for NEE. @fig-wood-unc2 shows initial condition uncertainty as the widest (greatest) variance compared to other uncertainty sources for Wood. 
 ```{r}
 #| warning: FALSE
 #| fig-cap: Forecast of each uncertainty source for NEE. One day ahead indicated by red line. Ten days ahead indicated by blue line. Thirty days ahead indicated by green line. 
@@ -383,6 +393,7 @@ Using the code above as a guide, create code to estimate uncertainty based on th
 Answer with text, code, and plots the following questions
 
 -   Plot the forecast with the combined uncertainty.
+
 ```{r}
 #| warning: FALSE
 #| fig-cap: Forecast with combined uncertainty
@@ -426,7 +437,8 @@ var.comparison
 # total_uncertainty<-rbind(total_uncertainty, variance.j)
 # }
 ```
-The variance of the combined uncertainty and the sum of the individual variances do not match, as shown in the var.diff column of the var.comparison dataframe. Often, the sum of individual variances is greater than the variance of the combine uncertainty. This means that there is overlap in the variances, which is accounted for in the variance of combined uncertainty but not in the sum of individual variances. Combining all sources of uncertainty produces a smaller variance, so multiple sources of uncertainty produce noise in similar regions. @fig-combo-unc2-parsed depicts this overlap in uncertainties. I would expect, therefore, that adding individual variances would greatly increase variance because the overlap is not accounted for in this approach. 
+
+The variance of the combined uncertainty and the sum of the individual variances do not match, as shown in the var.diff column of the var.comparison dataframe. Often, the sum of individual variances is greater than the variance of the combine uncertainty. This means that there is overlap in the variances, which is accounted for in the variance of combined uncertainty but not in the sum of individual variances. Combining all sources of uncertainty produces a smaller variance, so multiple sources of uncertainty produce noise in similar regions. @fig-combo-unc2-parsed depicts this overlap in uncertainties. I would expect, therefore, that adding individual variances would greatly increase variance because the overlap is not accounted for in this approach.
 
 ```{r}
 #| warning: FALSE
