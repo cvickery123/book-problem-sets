@@ -8,6 +8,7 @@ editor: visual
 #| message: FALSE
 library(tidyverse)
 library(lubridate)
+library(arrow)
 source("https://raw.githubusercontent.com/frec-5174/eco4cast-in-R-book/main/R/helpers.R")
 source("https://raw.githubusercontent.com/frec-5174/eco4cast-in-R-book/main/R/forest_model.R")
 ```
@@ -293,13 +294,87 @@ Using a dataset that combines each of the uncertainty dataframes into a single d
 
 ```{r}
 combined_df <- bind_rows(parameter_df, process_df, initial_conditions_df, drivers_df)
+
+var_df<-combined_df %>% 
+  group_by(model_id, datetime, variable) %>% 
+  summarize(variance=var(prediction))
 ```
 
 Answer with text, code, and plots the following questions
 
 1)  1 day-ahead, what the largest source of uncertainty for a flux (nee)? for a state (wood)?
+```{r}
+var_df %>% filter(variable=="nee", datetime=="2023-11-16")
+```
+The largest source of uncertainty for a flux (NEE) one day ahead is driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=2. Process uncertainty has a variance of zero at datetime t=2. 
+```{r}
+var_df %>% filter(variable=="wood", datetime=="2023-11-16")
+```
+The largest source of uncertainty for a state (wood) one day ahead is initial condition uncertainty, based on the fact that initial condition has the largest variance around the mean for datetime t=2. 
+
+
 2)  10 days-ahead, what is the largest source of uncertainty for a flux (nee)? for a state (wood)?
+```{r}
+var_df %>% filter(variable=="nee", datetime=="2023-11-25")
+```
+The largest source of uncertainty for a flux (NEE) ten days ahead is again driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=10. 
+```{r}
+var_df %>% filter(variable=="wood", datetime=="2023-11-25")
+```
+The largest source of uncertainty for a state (wood) ten days ahead is initial condition uncertainty, based on the fact that initial condition has the largest variance around the mean for datetime t=10.
+
+
 3)  30 days-ahead, what is the largest source of uncertainty for a flux (nee)? for a state (wood)?
+```{r}
+var_df %>% filter(variable=="nee", datetime=="2023-12-15")
+```
+The largest source of uncertainty for a flux (NEE) thirty days ahead is again driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=30. 
+```{r}
+var_df %>% filter(variable=="wood", datetime=="2023-12-15")
+```
+The largest source of uncertainty for a state (wood) thirty days ahead is again initial condition uncertainty, based on the fact that initial condition has the largest variance around the mean for datetime t=30.
+
+
+The consistency across timesteps for the largest contributers to uncertainty are confirmed when I plot uncertainty for each variable. @fig-nee-unc2 shows driver uncertainty as the widest (greatest) variance compared to other uncertainty sources for NEE. @fig-wood-unc2 shows initial condition uncertainty as the widest (greatest) variance compared to other uncertainty sources for Wood. 
+```{r}
+#| warning: FALSE
+#| fig-cap: Forecast of each uncertainty source for NEE. One day ahead indicated by red line. Ten days ahead indicated by blue line. Thirty days ahead indicated by green line. 
+#| label: fig-nee-unc2
+combined_df %>% filter(variable=="nee") %>%
+  summarise(median = median(prediction, na.rm = TRUE), 
+            upper90 = quantile(prediction, 0.95, na.rm = TRUE),
+            lower90 = quantile(prediction, 0.05, na.rm = TRUE),
+            .by = c("datetime", "model_id")) %>%
+  ggplot(aes(x = datetime)) +
+  geom_ribbon(aes(ymin = lower90, ymax = upper90), alpha = 0.7) +
+  geom_line(aes(y = median)) +
+  facet_wrap(~model_id) +
+  theme_bw() +
+  ggtitle("Sources of Uncertainty: NEE")+
+  geom_vline(xintercept=as.Date("2023-11-16"), color="red")+
+  geom_vline(xintercept=as.Date("2023-11-25"), color="blue")+
+  geom_vline(xintercept=as.Date("2023-12-15"), color="green")
+```
+
+```{r}
+#| warning: FALSE
+#| fig-cap: Forecast of each uncertainty source for Wood. One day ahead indicated by red line. Ten days ahead indicated by blue line. Thirty days ahead indicated by green line. 
+#| label: fig-wood-unc2
+combined_df %>% filter(variable=="wood") %>%
+  summarise(median = median(prediction, na.rm = TRUE), 
+            upper90 = quantile(prediction, 0.95, na.rm = TRUE),
+            lower90 = quantile(prediction, 0.05, na.rm = TRUE),
+            .by = c("datetime", "model_id")) %>%
+  ggplot(aes(x = datetime)) +
+  geom_ribbon(aes(ymin = lower90, ymax = upper90), alpha = 0.7) +
+  geom_line(aes(y = median)) +
+  facet_wrap(~model_id) +
+  theme_bw() +
+  ggtitle("Sources of Uncertainty: Wood")+
+  geom_vline(xintercept=as.Date("2023-11-16"), color="red")+
+  geom_vline(xintercept=as.Date("2023-11-25"), color="blue")+
+  geom_vline(xintercept=as.Date("2023-12-15"), color="green")
+```
 
 ### Part 2
 
