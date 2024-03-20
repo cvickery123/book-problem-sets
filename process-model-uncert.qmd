@@ -11,6 +11,7 @@ library(lubridate)
 library(arrow)
 source("https://raw.githubusercontent.com/frec-5174/eco4cast-in-R-book/main/R/helpers.R")
 source("https://raw.githubusercontent.com/frec-5174/eco4cast-in-R-book/main/R/forest_model.R")
+set.seed(123)
 ```
 
 This chapter applies the concepts in [Chapter -@sec-under-unc] to the forest process model. If you have not reviewed chapter 5 yet, I recommend doing that as a foundation for this Chapter.
@@ -427,6 +428,7 @@ totalUC_df |>
 -   If you calculate the variance of the combined uncertainty and compared to the sum of the individual variances, do they match? What does it mean if they are different?
 
 ```{r}
+#| warning: FALSE
 #variance of combined uncertainty
 var_df_combo.unc<-totalUC_df %>% group_by(variable, datetime) %>%
   summarize(combo.unc=var(prediction))
@@ -442,7 +444,8 @@ var.comparison$var.diff<-var.comparison$combo.unc-var.comparison$sum.var
 var.comparison
 ```
 
-The variance of the combined uncertainty and the sum of the individual variances do not match, as shown in the var.diff column of the var.comparison dataframe. For SOM and Wood, the variance of combined uncertainty is almost exclusively greater than the sum of individual variance for each date (@fig-var-diff). For NEE, the sum of individual variances is greater than the variance of the combine uncertainty. For LAI, the variance of combined uncertainty is greater than the sum of individual variance for the first few weeks of the model horizon. Then, the sum of individual variance becomes almost exclusively greater than the variance of combined uncertainty later in the model horizon.
+The variance of the combined uncertainty and the sum of the individual variances do not match, as shown in the var.diff column of the var.comparison dataframe. Direction for which variance is greater depends on the variable and date (@fig-var-diff). Without using set.seed, the difference between the variances is inconsistent with different random selections throughout the code above. Set patterns, therefore, cannot be established for each variable, but trends for this specific model can be seen in @fig-var-diff. 
+
 
 ```{r}
 #| warning: FALSE
@@ -458,11 +461,11 @@ var.comparison %>% filter(variable %in% c("lai", "wood", "som", "nee")) %>%
     colors = c("red", "green"),
     breaks = 0)
 ```
-When the sum of individual variance is greater than the variance of combined uncertainty, there is overlap in the variances, which is accounted for in the variance of combined uncertainty but not in the sum of individual variances. Combining all sources of uncertainty produces a smaller variance, so multiple sources of uncertainty produce noise in similar regions. @fig-combo-unc2-parsed depicts this overlap in uncertainties. I would expect, therefore, that adding individual variances would greatly increase variance because the overlap is not accounted for in this approach. For LAI, the widening of process uncertainty beyond initial condition uncertainty halfway through the model horizon visually corresponds with the sum of individual variances overcoming variance of combined uncertainty from  @fig-var-diff. It makes sense that NEE has a higher sum of individual variances because NEE is the only variable that has all four sources of uncertainty. 
+When the sum of individual variance is greater than the variance of combined uncertainty, there is overlap in the variances, which is accounted for in the variance of combined uncertainty but not in the sum of individual variances. Combining all sources of uncertainty produces a smaller variance, so multiple sources of uncertainty produce noise in similar regions. @fig-combo-unc2-parsed depicts this overlap in uncertainties. I would expect, therefore, that adding individual variances would greatly increase variance because the overlap is not accounted for in this approach. Given the overlap of individual uncertainties for NEE, it makes sense that adding individual uncertainties would be greater than variance of combined uncertainty. 
 
 ```{r}
 #| warning: FALSE
-#| fig-cap: Forecast with all sources of uncertainty, with uncertainties separated by color. 
+#| fig-cap: Forecast with all sources of uncertainty, with uncertainties separated by color. Median omited for clarity of image.
 #| label: fig-combo-unc2-parsed
 combined_df %>% filter(variable %in% c("lai", "wood", "som", "nee")) %>%
   summarise(median = median(prediction, na.rm = TRUE), 
@@ -471,15 +474,14 @@ combined_df %>% filter(variable %in% c("lai", "wood", "som", "nee")) %>%
             .by = c("datetime", "model_id", "variable")) %>%
   ggplot(aes(x = datetime)) +
   geom_ribbon(aes(ymin = lower90, ymax = upper90, group=model_id, fill=model_id), alpha = 0.3) +
-  scale_fill_manual(values=c("goldenrod2", "gray30", "blue", "red"), name="uncertainty source")+
-  geom_line(aes(y = median)) +
+  scale_fill_manual(values=c("black", "gold", "skyblue3", "red"), name="uncertainty source")+
+  #geom_line(aes(y = median, color=model_id)) +
   facet_wrap(~variable, scale = "free") +
   theme_bw()
 ```
 
-
-
 END OF ASSIGNMENT
+
 Extra code to ask questions about in class 
 ```{r}
 #MY ATTEMPT AT A DIFFERENT WAY TO PLOT ALL UNCERTAINTY - INCORRECT

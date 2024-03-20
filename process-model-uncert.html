@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.546">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Process model uncertainity</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="process-model-uncert_files/libs/clipboard/clipboard.min.js"></script>
+<script src="process-model-uncert_files/libs/quarto-html/quarto.js"></script>
+<script src="process-model-uncert_files/libs/quarto-html/popper.min.js"></script>
+<script src="process-model-uncert_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="process-model-uncert_files/libs/quarto-html/anchor.min.js"></script>
+<link href="process-model-uncert_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="process-model-uncert_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="process-model-uncert_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="process-model-uncert_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="process-model-uncert_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Process model uncertainity</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(lubridate)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(arrow)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">"https://raw.githubusercontent.com/frec-5174/eco4cast-in-R-book/main/R/helpers.R"</span>)</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">source</span>(<span class="st">"https://raw.githubusercontent.com/frec-5174/eco4cast-in-R-book/main/R/forest_model.R"</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">123</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This chapter applies the concepts in <strong>?@sec-under-unc</strong> to the forest process model. If you have not reviewed chapter 5 yet, I recommend doing that as a foundation for this Chapter.</p>
+<section id="setting-up-simulations" class="level2">
+<h2 class="anchored" data-anchor-id="setting-up-simulations">Setting up simulations</h2>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>sim_dates <span class="ot">&lt;-</span> <span class="fu">seq</span>(<span class="fu">as_date</span>(<span class="st">"2023-11-15"</span>),<span class="at">length.out  =</span> <span class="dv">34</span>, <span class="at">by =</span> <span class="st">"1 day"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>site <span class="ot">&lt;-</span> <span class="st">"OSBS"</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<section id="baseline-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="baseline-parameters">Baseline parameters</h3>
+<p>This are the parameters that will be used for all the simulations except for the simulation where parameter uncertainty is propagated</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>ens_members <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>alpha <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">0.02</span>, ens_members)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>SLA <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">4.74</span>, ens_members)</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>leaf_frac <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">0.315</span>, ens_members)</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>Ra_frac <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">0.5</span>, ens_members)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>Rbasal <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">0.002</span>, ens_members)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>Q10 <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">2.1</span>, ens_members)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>litterfall_rate <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">1</span><span class="sc">/</span>(<span class="fl">2.0</span><span class="sc">*</span><span class="dv">365</span>), ens_members) <span class="co">#Two year leaf lifespan</span></span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>litterfall_start <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">200</span>, ens_members)</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>litterfall_length<span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">70</span>, ens_members)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>mortality <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">0.00015</span>, ens_members) <span class="co">#Wood lives about 18 years on average (all trees, branches, roots, course roots)</span></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>sigma.leaf <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">0.0</span>, ens_members) <span class="co">#0.01 </span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>sigma.stem <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">0.0</span>, ens_members) <span class="co">#0.01 ## wood biomass</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>params<span class="sc">$</span>sigma.soil <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">0.0</span>, ens_members)<span class="co"># 0.01</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">as.data.frame</span>(params)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="baseline-initial-conditions" class="level3">
+<h3 class="anchored" data-anchor-id="baseline-initial-conditions">Baseline initial conditions</h3>
+<p>This are the initial conditions that will be used for all the simulations except for the simulation where initial uncertainty is propagated</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Set initial conditions</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>output <span class="ot">&lt;-</span> <span class="fu">array</span>(<span class="cn">NA</span>, <span class="at">dim =</span> <span class="fu">c</span>(<span class="fu">length</span>(sim_dates), ens_members, <span class="dv">12</span>)) <span class="co">#12 is the number of outputs</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>output[<span class="dv">1</span>, , <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="dv">5</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>output[<span class="dv">1</span>, , <span class="dv">2</span>] <span class="ot">&lt;-</span> <span class="dv">140</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>output[<span class="dv">1</span>, , <span class="dv">3</span>] <span class="ot">&lt;-</span> <span class="dv">140</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="baseline-drivers" class="level3">
+<h3 class="anchored" data-anchor-id="baseline-drivers">Baseline drivers</h3>
+<p>This are the drivers conditions that will be used for all the simulations except for the simulation where driver uncertainty is propagated. It uses the mean for the weather forecast ensemble.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>inputs <span class="ot">&lt;-</span> <span class="fu">get_forecast_met</span>(<span class="at">site =</span> site, sim_dates, <span class="at">use_mean =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>inputs_ensemble <span class="ot">&lt;-</span> <span class="fu">assign_met_ensembles</span>(inputs, ens_members)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="parameter-uncertainty" class="level2">
+<h2 class="anchored" data-anchor-id="parameter-uncertainty">Parameter uncertainty</h2>
+<p>Our model has 13 parameters. Each of them require a value that is likely not known with perfect uncertainty. Representing parameter uncertainty involves replacing the single value for each parameter with a distribution. The distribution can be from literature reviews, a best guess, or the outcome of a calibration exercise. The the calibration exercise is Bayesian the distribution of the parameter before calibration can be refereed to as a prior and after calibration is a posterior. Sampling from the parameter distribution provides values for the parameter that are assigned to each ensemble member.</p>
+<p>In many cases a sensitivity analysis can be used to determine which parameters to focus uncertainty estimation on. If a model is not particularly sensitive to parameter then the prediction uncertainty is less likely to be strongly determined by the uncertainty in that parameter. In practices, the values for the less sensitive parameters are held at a single value. Other parameters are so well known that they are also held at a single value (e.g., the gravitation constant).</p>
+<p>In this example, I focuses only on propagating one parameter (<code>alpha</code>) that represents the light use efficiency of photosynthesis. All other parameters are held at their baseline values.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>new_params <span class="ot">&lt;-</span> params</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>new_params<span class="sc">$</span>alpha <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(ens_members, params<span class="sc">$</span>alpha, <span class="at">sd =</span> <span class="fl">0.005</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This results in <code>alpha</code> having the following distribution <a href="#fig-alpha" class="quarto-xref">Figure&nbsp;1</a>:</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-alpha" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-alpha-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-alpha-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-alpha-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;1: Histogram showing the distribution of the parameter alpha
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>Use the <code>new_params</code> as the parameters in the simulation.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(t <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span><span class="fu">length</span>(sim_dates)){</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  output[t, , ]  <span class="ot">&lt;-</span> <span class="fu">forest_model</span>(t, </span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">states =</span> <span class="fu">matrix</span>(output[t<span class="dv">-1</span> , , <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="at">nrow =</span> ens_members) , </span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>                               <span class="at">parms =</span> new_params, </span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>                               <span class="at">inputs =</span> <span class="fu">matrix</span>(inputs_ensemble[t ,, ], <span class="at">nrow =</span> ens_members))</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>parameter_df <span class="ot">&lt;-</span> <span class="fu">output_to_df</span>(output, sim_dates, <span class="at">sim_name =</span> <span class="st">"parameter_unc"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><a href="#fig-parameter-unc" class="quarto-xref">Figure&nbsp;2</a> shows the forecast that only includes parameter uncertainty</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>parameter_df <span class="sc">|&gt;</span> </span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(variable <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"lai"</span>, <span class="st">"wood"</span>, <span class="st">"som"</span>, <span class="st">"nee"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">median =</span> <span class="fu">median</span>(prediction, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), </span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">upper90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.95</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">lower90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">.by =</span> <span class="fu">c</span>(<span class="st">"datetime"</span>, <span class="st">"variable"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> datetime)) <span class="sc">+</span></span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lower90, <span class="at">ymax =</span> upper90), <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> median)) <span class="sc">+</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>variable, <span class="at">scale =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-parameter-unc" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-parameter-unc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-parameter-unc-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-parameter-unc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;2: Forecast with parameter uncertainty
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="process-uncertainty" class="level2">
+<h2 class="anchored" data-anchor-id="process-uncertainty">Process uncertainty</h2>
+<p>Process uncertainty is the uncertainty that comes from the model being a simplification of reality. We can use random noise to capture the dynamics that are missing from the model. The random noise is added to each state as end model timestep. The random noise is normally distributed with a mean equal to the model prediction for that time-step and the standard deviation equal to the parameters <code>sigma.leaf</code> (or leaves), <code>sigma.stem</code> (for wood), and <code>sigma.soil</code> (SOM). The result is a random walk that is guided by the mean prediction of the process model.</p>
+<p>Process uncertainty can be removed by setting the standard deviations equal to 0. Here we add in process uncertainty by setting the standard deviation to a non-zero value. The standard deviations can be determined using state-space calibration of the ecosystem model. You can learn more about state-space modeling in <span class="citation" data-cites="dietzeEcologicalForecasting2017">@dietzeEcologicalForecasting2017</span></p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>new_params <span class="ot">&lt;-</span> params</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>new_params<span class="sc">$</span>sigma.leaf <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">0.1</span>, ens_members)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>new_params<span class="sc">$</span>sigma.stem <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">1</span>, ens_members) <span class="co">#0.01 ## wood biomass</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>new_params<span class="sc">$</span>sigma.soil <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="dv">1</span>, ens_members)<span class="co"># 0.01</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>As an example <a href="#fig-process-unc" class="quarto-xref">Figure&nbsp;3</a> shows the distribution in the noise that is added the leaf state at each time step.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-process-unc" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-process-unc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-process-unc-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-process-unc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;3: Histogram of the distribution of process uncertainty added to leaf carbon
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(t <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span><span class="fu">length</span>(sim_dates)){</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>  output[t, , ]  <span class="ot">&lt;-</span> <span class="fu">forest_model</span>(t, </span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">states =</span> <span class="fu">matrix</span>(output[t<span class="dv">-1</span> , , <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="at">nrow =</span> ens_members) , </span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>                               <span class="at">parms =</span> new_params, </span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>                               <span class="at">inputs =</span> <span class="fu">matrix</span>(inputs_ensemble[t ,, ], <span class="at">nrow =</span> ens_members))</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a>process_df <span class="ot">&lt;-</span> <span class="fu">output_to_df</span>(output, sim_dates, <span class="at">sim_name =</span> <span class="st">"process_unc"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><a href="#fig-process-unc2" class="quarto-xref">Figure&nbsp;4</a> shows the forecast that only includes process uncertainty</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>process_df <span class="sc">|&gt;</span> </span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(variable <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"lai"</span>, <span class="st">"wood"</span>, <span class="st">"som"</span>, <span class="st">"nee"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">median =</span> <span class="fu">median</span>(prediction, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), </span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">upper90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.95</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">lower90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">.by =</span> <span class="fu">c</span>(<span class="st">"datetime"</span>, <span class="st">"variable"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> datetime)) <span class="sc">+</span></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lower90, <span class="at">ymax =</span> upper90), <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> median)) <span class="sc">+</span></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>variable, <span class="at">scale =</span> <span class="st">"free"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-process-unc2" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-process-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-process-unc2-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-process-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;4: Forecast with process uncertainty
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="initial-condition-uncertainty" class="level2">
+<h2 class="anchored" data-anchor-id="initial-condition-uncertainty">Initial condition uncertainty</h2>
+<p>Initial condition uncertainty is the spread in the model states at the first time-step of a forecast. This spread would be due to a lack of measurements (thus no direct knowledge of the state) or uncertainty in measurements (there is a spread in the possible states because we can’t perfectly observe it.). Here we represent initial condition uncertainty by generating a normal distribution with a mean equal to the observed value (or our best guess) and a standard deviation that represents measurement uncertainty. We update the initial starting point in the forecast with this distribution.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co">#Set initial conditions</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>new_output <span class="ot">&lt;-</span> <span class="fu">array</span>(<span class="cn">NA</span>, <span class="at">dim =</span> <span class="fu">c</span>(<span class="fu">length</span>(sim_dates), ens_members, <span class="dv">12</span>)) <span class="co">#12 is the number of outputs</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>new_output[<span class="dv">1</span>, , <span class="dv">1</span>] <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(ens_members, <span class="dv">5</span>, <span class="fl">0.5</span>)</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>new_output[<span class="dv">1</span>, , <span class="dv">2</span>] <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(ens_members, <span class="dv">140</span>, <span class="dv">10</span>)</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>new_output[<span class="dv">1</span>, , <span class="dv">3</span>] <span class="ot">&lt;-</span> <span class="fu">rnorm</span>(ens_members, <span class="dv">140</span>, <span class="dv">20</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>As an example <a href="#fig-init-unc" class="quarto-xref">Figure&nbsp;5</a> shows the distribution in the noise that is added the initial leaf state.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-init-unc" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-init-unc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-init-unc-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-init-unc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;5: Distribution of intial condition uncertainty for leaf carbon (Mg/ha)
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(t <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span><span class="fu">length</span>(sim_dates)){</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>  new_output[t, , ]  <span class="ot">&lt;-</span> <span class="fu">forest_model</span>(t, </span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">states =</span> <span class="fu">matrix</span>(new_output[t<span class="dv">-1</span> , , <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="at">nrow =</span> ens_members) , </span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>                               <span class="at">parms =</span> params, </span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>                               <span class="at">inputs =</span> <span class="fu">matrix</span>(inputs_ensemble[t ,, ], <span class="at">nrow =</span> ens_members))</span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>initial_conditions_df <span class="ot">&lt;-</span> <span class="fu">output_to_df</span>(new_output, sim_dates, <span class="at">sim_name =</span> <span class="st">"initial_unc"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><a href="#fig-init-unc2" class="quarto-xref">Figure&nbsp;6</a> shows the forecast that only includes initial condition uncertainty</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>initial_conditions_df <span class="sc">|&gt;</span> </span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(variable <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"lai"</span>, <span class="st">"wood"</span>, <span class="st">"som"</span>, <span class="st">"nee"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">median =</span> <span class="fu">median</span>(prediction, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), </span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">upper90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.95</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">lower90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">.by =</span> <span class="fu">c</span>(<span class="st">"datetime"</span>, <span class="st">"variable"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> datetime)) <span class="sc">+</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lower90, <span class="at">ymax =</span> upper90), <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> median)) <span class="sc">+</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>variable, <span class="at">scale =</span> <span class="st">"free"</span>)  <span class="sc">+</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-init-unc2" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-init-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-init-unc2-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-init-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;6: Forecast with initial condition uncertainty
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="driver-uncertainty" class="level2">
+<h2 class="anchored" data-anchor-id="driver-uncertainty">Driver uncertainty</h2>
+<p>The uncertainty in the weather forecasts comes directly from the 31 ensembles provided by the NOAA Global Ensemble Forecasting System (GEFS). The ensemble is generated by slightly changing (perturbing) the initial states in the weather model before starting the forecast. Due to the chaotic nature of the atmosphere, the small differences get amplified over time, resulting in spread that increases further in the future.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>new_inputs <span class="ot">&lt;-</span> <span class="fu">get_forecast_met</span>(<span class="at">site =</span> site, sim_dates, <span class="at">use_mean =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>new_inputs_ensemble <span class="ot">&lt;-</span> <span class="fu">assign_met_ensembles</span>(new_inputs, ens_members)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>As an example <a href="#fig-driver-unc" class="quarto-xref">Figure&nbsp;7</a> shows 31 ensemble members from single 35-day forecast generated by NOAA GEFS.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div id="fig-driver-unc" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-driver-unc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-driver-unc-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-driver-unc-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;7: 35-day ahead forecasts from NOAA GEFS of the two variables using by the process model.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(t <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span><span class="fu">length</span>(sim_dates)){</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  output[t, , ]  <span class="ot">&lt;-</span> <span class="fu">forest_model</span>(t, </span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">states =</span> <span class="fu">matrix</span>(output[t<span class="dv">-1</span> , , <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="at">nrow =</span> ens_members) , </span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>                               <span class="at">parms =</span> params, </span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>                               <span class="at">inputs =</span> <span class="fu">matrix</span>(new_inputs_ensemble[t ,, ], <span class="at">nrow =</span> ens_members))</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>drivers_df <span class="ot">&lt;-</span> <span class="fu">output_to_df</span>(output, sim_dates, <span class="at">sim_name =</span> <span class="st">"driver_unc"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><a href="#fig-driver-unc2" class="quarto-xref">Figure&nbsp;8</a> shows the forecast that only includes driver uncertainty</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>drivers_df <span class="sc">|&gt;</span> </span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(variable <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"lai"</span>, <span class="st">"wood"</span>, <span class="st">"som"</span>, <span class="st">"nee"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">median =</span> <span class="fu">median</span>(prediction, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), </span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">upper90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.95</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">lower90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">.by =</span> <span class="fu">c</span>(<span class="st">"datetime"</span>, <span class="st">"variable"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> datetime)) <span class="sc">+</span></span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lower90, <span class="at">ymax =</span> upper90), <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> median)) <span class="sc">+</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>variable, <span class="at">scale =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-driver-unc2" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-driver-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-driver-unc2-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-driver-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;8: Forecast with driver uncertainty
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="problem-set" class="level2">
+<h2 class="anchored" data-anchor-id="problem-set">Problem Set</h2>
+<section id="part-1" class="level3">
+<h3 class="anchored" data-anchor-id="part-1">Part 1</h3>
+<p>Using a dataset that combines each of the uncertainty dataframes into a single data frame:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>combined_df <span class="ot">&lt;-</span> <span class="fu">bind_rows</span>(parameter_df, process_df, initial_conditions_df, drivers_df)</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a>var_df<span class="ot">&lt;-</span>combined_df <span class="sc">%&gt;%</span> </span>
+<span id="cb19-4"><a href="#cb19-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(model_id, datetime, variable) <span class="sc">%&gt;%</span> </span>
+<span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">variance=</span><span class="fu">var</span>(prediction))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>`summarise()` has grouped output by 'model_id', 'datetime'. You can override
+using the `.groups` argument.</code></pre>
+</div>
+</div>
+<p>Answer with text, code, and plots the following questions</p>
+<ol type="1">
+<li>1 day-ahead, what the largest source of uncertainty for a flux (nee)? for a state (wood)?</li>
+</ol>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>var_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(variable<span class="sc">==</span><span class="st">"nee"</span>, datetime<span class="sc">==</span><span class="st">"2023-11-16"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 4
+# Groups:   model_id, datetime [4]
+  model_id      datetime   variable   variance
+  &lt;chr&gt;         &lt;date&gt;     &lt;chr&gt;         &lt;dbl&gt;
+1 driver_unc    2023-11-16 nee      0.0000234 
+2 initial_unc   2023-11-16 nee      0.00000361
+3 parameter_unc 2023-11-16 nee      0.00000414
+4 process_unc   2023-11-16 nee      0         </code></pre>
+</div>
+</div>
+<p>The largest source of uncertainty for a flux (NEE) one day ahead is driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=2. Process uncertainty has a variance of zero at datetime t=2.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>var_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(variable<span class="sc">==</span><span class="st">"wood"</span>, datetime<span class="sc">==</span><span class="st">"2023-11-16"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 4
+# Groups:   model_id, datetime [4]
+  model_id      datetime   variable    variance
+  &lt;chr&gt;         &lt;date&gt;     &lt;chr&gt;          &lt;dbl&gt;
+1 driver_unc    2023-11-16 wood      0.0000130 
+2 initial_unc   2023-11-16 wood     99.7       
+3 parameter_unc 2023-11-16 wood      0.00000194
+4 process_unc   2023-11-16 wood      1.07      </code></pre>
+</div>
+</div>
+<p>The largest source of uncertainty for a state (wood) one day ahead is initial condition uncertainty, based on the fact that initial condition has the largest variance around the mean for datetime t=2.</p>
+<ol start="2" type="1">
+<li>10 days-ahead, what is the largest source of uncertainty for a flux (nee)? for a state (wood)?</li>
+</ol>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>var_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(variable<span class="sc">==</span><span class="st">"nee"</span>, datetime<span class="sc">==</span><span class="st">"2023-11-25"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 4
+# Groups:   model_id, datetime [4]
+  model_id      datetime   variable    variance
+  &lt;chr&gt;         &lt;date&gt;     &lt;chr&gt;          &lt;dbl&gt;
+1 driver_unc    2023-11-25 nee      0.0000526  
+2 initial_unc   2023-11-25 nee      0.00000255 
+3 parameter_unc 2023-11-25 nee      0.0000254  
+4 process_unc   2023-11-25 nee      0.000000316</code></pre>
+</div>
+</div>
+<p>The largest source of uncertainty for a flux (NEE) ten days ahead is again driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=10.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>var_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(variable<span class="sc">==</span><span class="st">"wood"</span>, datetime<span class="sc">==</span><span class="st">"2023-11-25"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 4
+# Groups:   model_id, datetime [4]
+  model_id      datetime   variable  variance
+  &lt;chr&gt;         &lt;date&gt;     &lt;chr&gt;        &lt;dbl&gt;
+1 driver_unc    2023-11-25 wood      0.000236
+2 initial_unc   2023-11-25 wood     99.4     
+3 parameter_unc 2023-11-25 wood      0.00118 
+4 process_unc   2023-11-25 wood     11.8     </code></pre>
+</div>
+</div>
+<p>The largest source of uncertainty for a state (wood) ten days ahead is initial condition uncertainty, based on the fact that initial condition has the largest variance around the mean for datetime t=10.</p>
+<ol start="3" type="1">
+<li>30 days-ahead, what is the largest source of uncertainty for a flux (nee)? for a state (wood)?</li>
+</ol>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>var_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(variable<span class="sc">==</span><span class="st">"nee"</span>, datetime<span class="sc">==</span><span class="st">"2023-12-15"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 4
+# Groups:   model_id, datetime [4]
+  model_id      datetime   variable    variance
+  &lt;chr&gt;         &lt;date&gt;     &lt;chr&gt;          &lt;dbl&gt;
+1 driver_unc    2023-12-15 nee      0.0000678  
+2 initial_unc   2023-12-15 nee      0.00000200 
+3 parameter_unc 2023-12-15 nee      0.0000211  
+4 process_unc   2023-12-15 nee      0.000000775</code></pre>
+</div>
+</div>
+<p>The largest source of uncertainty for a flux (NEE) thirty days ahead is again driver uncertainty, based on the fact that driver uncertainty has the largest variance around the mean for datetime t=30.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>var_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(variable<span class="sc">==</span><span class="st">"wood"</span>, datetime<span class="sc">==</span><span class="st">"2023-12-15"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 4
+# Groups:   model_id, datetime [4]
+  model_id      datetime   variable  variance
+  &lt;chr&gt;         &lt;date&gt;     &lt;chr&gt;        &lt;dbl&gt;
+1 driver_unc    2023-12-15 wood      0.000754
+2 initial_unc   2023-12-15 wood     98.8     
+3 parameter_unc 2023-12-15 wood      0.00980 
+4 process_unc   2023-12-15 wood     33.9     </code></pre>
+</div>
+</div>
+<p>The largest source of uncertainty for a state (wood) thirty days ahead is again initial condition uncertainty, based on the fact that initial condition has the largest variance around the mean for datetime t=30.</p>
+<p>The consistency across time steps for the largest contributions to uncertainty are confirmed when I plot uncertainty for each variable. <a href="#fig-nee-unc2" class="quarto-xref">Figure&nbsp;9</a> shows driver uncertainty as the widest (greatest) variance compared to other uncertainty sources for NEE. <a href="#fig-wood-unc2" class="quarto-xref">Figure&nbsp;10</a> shows initial condition uncertainty as the widest (greatest) variance compared to other uncertainty sources for Wood.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>combined_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(variable<span class="sc">==</span><span class="st">"nee"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">median =</span> <span class="fu">median</span>(prediction, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), </span>
+<span id="cb33-3"><a href="#cb33-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">upper90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.95</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb33-4"><a href="#cb33-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">lower90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb33-5"><a href="#cb33-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">.by =</span> <span class="fu">c</span>(<span class="st">"datetime"</span>, <span class="st">"model_id"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb33-6"><a href="#cb33-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> datetime)) <span class="sc">+</span></span>
+<span id="cb33-7"><a href="#cb33-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lower90, <span class="at">ymax =</span> upper90), <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb33-8"><a href="#cb33-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> median)) <span class="sc">+</span></span>
+<span id="cb33-9"><a href="#cb33-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>model_id) <span class="sc">+</span></span>
+<span id="cb33-10"><a href="#cb33-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb33-11"><a href="#cb33-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Sources of Uncertainty: NEE"</span>)<span class="sc">+</span></span>
+<span id="cb33-12"><a href="#cb33-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept=</span><span class="fu">as.Date</span>(<span class="st">"2023-11-16"</span>), <span class="at">color=</span><span class="st">"red"</span>)<span class="sc">+</span></span>
+<span id="cb33-13"><a href="#cb33-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept=</span><span class="fu">as.Date</span>(<span class="st">"2023-11-25"</span>), <span class="at">color=</span><span class="st">"blue"</span>)<span class="sc">+</span></span>
+<span id="cb33-14"><a href="#cb33-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept=</span><span class="fu">as.Date</span>(<span class="st">"2023-12-15"</span>), <span class="at">color=</span><span class="st">"green"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-nee-unc2" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-nee-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-nee-unc2-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-nee-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;9: Forecast of each uncertainty source for NEE. One day ahead indicated by red line. Ten days ahead indicated by blue line. Thirty days ahead indicated by green line.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>combined_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(variable<span class="sc">==</span><span class="st">"wood"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">median =</span> <span class="fu">median</span>(prediction, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), </span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">upper90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.95</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">lower90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">.by =</span> <span class="fu">c</span>(<span class="st">"datetime"</span>, <span class="st">"model_id"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> datetime)) <span class="sc">+</span></span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lower90, <span class="at">ymax =</span> upper90), <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> median)) <span class="sc">+</span></span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>model_id) <span class="sc">+</span></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span></span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggtitle</span>(<span class="st">"Sources of Uncertainty: Wood"</span>)<span class="sc">+</span></span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept=</span><span class="fu">as.Date</span>(<span class="st">"2023-11-16"</span>), <span class="at">color=</span><span class="st">"red"</span>)<span class="sc">+</span></span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept=</span><span class="fu">as.Date</span>(<span class="st">"2023-11-25"</span>), <span class="at">color=</span><span class="st">"blue"</span>)<span class="sc">+</span></span>
+<span id="cb34-14"><a href="#cb34-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept=</span><span class="fu">as.Date</span>(<span class="st">"2023-12-15"</span>), <span class="at">color=</span><span class="st">"green"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-wood-unc2" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-wood-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-wood-unc2-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-wood-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;10: Forecast of each uncertainty source for Wood. One day ahead indicated by red line. Ten days ahead indicated by blue line. Thirty days ahead indicated by green line.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="part-2" class="level3">
+<h3 class="anchored" data-anchor-id="part-2">Part 2</h3>
+<p>Using the code above as a guide, create code to estimate uncertainty based on the propagation all sources at the same time (unlike the one-at-a-time approach above).</p>
+<p>Answer with text, code, and plots the following questions</p>
+<ul>
+<li>Plot the forecast with the combined uncertainty.</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span>(t <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span><span class="fu">length</span>(sim_dates)){</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  new_output[t, , ]  <span class="ot">&lt;-</span> <span class="fu">forest_model</span>(t, </span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>                               <span class="at">states =</span> <span class="fu">matrix</span>(new_output[t<span class="dv">-1</span> , , <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>], <span class="at">nrow =</span> ens_members) , <span class="co">#initial condition</span></span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>                               <span class="at">parms =</span> new_params, <span class="co">#parameter and process</span></span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>                               <span class="at">inputs =</span> <span class="fu">matrix</span>(new_inputs_ensemble[t ,, ], <span class="at">nrow =</span> ens_members)) <span class="co">#driver</span></span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>totalUC_df <span class="ot">&lt;-</span> <span class="fu">output_to_df</span>(new_output, sim_dates, <span class="at">sim_name =</span> <span class="st">"total_UC"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>totalUC_df <span class="sc">|&gt;</span> </span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(variable <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"lai"</span>, <span class="st">"wood"</span>, <span class="st">"som"</span>, <span class="st">"nee"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">median =</span> <span class="fu">median</span>(prediction, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), </span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">upper90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.95</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">lower90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a>            <span class="at">.by =</span> <span class="fu">c</span>(<span class="st">"datetime"</span>, <span class="st">"variable"</span>)) <span class="sc">|&gt;</span> </span>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> datetime)) <span class="sc">+</span></span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lower90, <span class="at">ymax =</span> upper90), <span class="at">alpha =</span> <span class="fl">0.7</span>) <span class="sc">+</span></span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>(<span class="fu">aes</span>(<span class="at">y =</span> median)) <span class="sc">+</span></span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>variable, <span class="at">scale =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-combo-unc2" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-combo-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-combo-unc2-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-combo-unc2-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;11: Forecast with combined uncertainty
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<ul>
+<li>If you calculate the variance of the combined uncertainty and compared to the sum of the individual variances, do they match? What does it mean if they are different?</li>
+</ul>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a><span class="co">#variance of combined uncertainty</span></span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>var_df_combo.unc<span class="ot">&lt;-</span>totalUC_df <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(variable, datetime) <span class="sc">%&gt;%</span></span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">combo.unc=</span><span class="fu">var</span>(prediction))</span>
+<span id="cb37-4"><a href="#cb37-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-5"><a href="#cb37-5" aria-hidden="true" tabindex="-1"></a><span class="co">#sum of individual variances</span></span>
+<span id="cb37-6"><a href="#cb37-6" aria-hidden="true" tabindex="-1"></a>var_df_sum.var<span class="ot">&lt;-</span>var_df <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(variable, datetime) <span class="sc">%&gt;%</span></span>
+<span id="cb37-7"><a href="#cb37-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarize</span>(<span class="at">sum.var=</span><span class="fu">sum</span>(variance))</span>
+<span id="cb37-8"><a href="#cb37-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-9"><a href="#cb37-9" aria-hidden="true" tabindex="-1"></a><span class="co">#comparison of variances</span></span>
+<span id="cb37-10"><a href="#cb37-10" aria-hidden="true" tabindex="-1"></a>var.comparison<span class="ot">&lt;-</span><span class="fu">left_join</span>(var_df_combo.unc, var_df_sum.var, <span class="at">by=</span><span class="fu">c</span>(<span class="st">'variable'</span>, <span class="st">'datetime'</span>))</span>
+<span id="cb37-11"><a href="#cb37-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb37-12"><a href="#cb37-12" aria-hidden="true" tabindex="-1"></a>var.comparison<span class="sc">$</span>var.diff<span class="ot">&lt;-</span>var.comparison<span class="sc">$</span>combo.unc<span class="sc">-</span>var.comparison<span class="sc">$</span>sum.var</span>
+<span id="cb37-13"><a href="#cb37-13" aria-hidden="true" tabindex="-1"></a>var.comparison</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 408 × 5
+# Groups:   variable [12]
+   variable datetime    combo.unc   sum.var   var.diff
+   &lt;chr&gt;    &lt;date&gt;          &lt;dbl&gt;     &lt;dbl&gt;      &lt;dbl&gt;
+ 1 gpp      2023-11-15 NA         NA        NA        
+ 2 gpp      2023-11-16  0.000114   0.000128 -0.0000145
+ 3 gpp      2023-11-17  0.0000778  0.000180 -0.000103 
+ 4 gpp      2023-11-18  0.0000463  0.000161 -0.000115 
+ 5 gpp      2023-11-19  0.0000239  0.000190 -0.000166 
+ 6 gpp      2023-11-20  0.0000700  0.000198 -0.000128 
+ 7 gpp      2023-11-21  0.000130   0.000219 -0.0000890
+ 8 gpp      2023-11-22  0.000183   0.000284 -0.000101 
+ 9 gpp      2023-11-23  0.000274   0.000386 -0.000112 
+10 gpp      2023-11-24  0.000111   0.000232 -0.000121 
+# ℹ 398 more rows</code></pre>
+</div>
+</div>
+<p>The variance of the combined uncertainty and the sum of the individual variances do not match, as shown in the var.diff column of the var.comparison dataframe. Direction for which variance is greater depends on the variable and date (<a href="#fig-var-diff" class="quarto-xref">Figure&nbsp;12</a>). Without using set.seed, the difference between the variances is inconsistent with different random selections throughout the code above. Set patterns, therefore, cannot be established for each variable, but trends for this specific model can be seen in <a href="#fig-var-diff" class="quarto-xref">Figure&nbsp;12</a>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>var.comparison <span class="sc">%&gt;%</span> <span class="fu">filter</span>(variable <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"lai"</span>, <span class="st">"wood"</span>, <span class="st">"som"</span>, <span class="st">"nee"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="fu">aes</span>(<span class="at">x=</span>datetime, <span class="at">y=</span>var.diff, <span class="at">color=</span>var.diff)) <span class="sc">+</span> </span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>variable, <span class="at">scales=</span><span class="st">"free"</span>)<span class="sc">+</span></span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_hline</span>(<span class="at">yintercept=</span><span class="dv">0</span>)<span class="sc">+</span></span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()<span class="sc">+</span></span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_stepsn</span>(</span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">colors =</span> <span class="fu">c</span>(<span class="st">"red"</span>, <span class="st">"green"</span>),</span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">breaks =</span> <span class="dv">0</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-var-diff" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-var-diff-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-var-diff-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-var-diff-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;12: Variance of combined uncertainty minus sum of the individual variances by date. Positive values (brown) indicate that the variance of combined uncertainty is greater than the sum of individual variance. Negative values (red) indicate that sum of individual variance is greater than the variance of combined uncertainty.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>When the sum of individual variance is greater than the variance of combined uncertainty, there is overlap in the variances, which is accounted for in the variance of combined uncertainty but not in the sum of individual variances. Combining all sources of uncertainty produces a smaller variance, so multiple sources of uncertainty produce noise in similar regions. <a href="#fig-combo-unc2-parsed" class="quarto-xref">Figure&nbsp;13</a> depicts this overlap in uncertainties. I would expect, therefore, that adding individual variances would greatly increase variance because the overlap is not accounted for in this approach. Given the overlap of individual uncertainties for NEE, it makes sense that adding individual uncertainties would be greater than variance of combined uncertainty.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb40"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a>combined_df <span class="sc">%&gt;%</span> <span class="fu">filter</span>(variable <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">"lai"</span>, <span class="st">"wood"</span>, <span class="st">"som"</span>, <span class="st">"nee"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(<span class="at">median =</span> <span class="fu">median</span>(prediction, <span class="at">na.rm =</span> <span class="cn">TRUE</span>), </span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a>            <span class="at">upper90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.95</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a>            <span class="at">lower90 =</span> <span class="fu">quantile</span>(prediction, <span class="fl">0.05</span>, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a>            <span class="at">.by =</span> <span class="fu">c</span>(<span class="st">"datetime"</span>, <span class="st">"model_id"</span>, <span class="st">"variable"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">ggplot</span>(<span class="fu">aes</span>(<span class="at">x =</span> datetime)) <span class="sc">+</span></span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">ymin =</span> lower90, <span class="at">ymax =</span> upper90, <span class="at">group=</span>model_id, <span class="at">fill=</span>model_id), <span class="at">alpha =</span> <span class="fl">0.3</span>) <span class="sc">+</span></span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_manual</span>(<span class="at">values=</span><span class="fu">c</span>(<span class="st">"black"</span>, <span class="st">"gold"</span>, <span class="st">"skyblue3"</span>, <span class="st">"red"</span>), <span class="at">name=</span><span class="st">"uncertainty source"</span>)<span class="sc">+</span></span>
+<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a>  <span class="co">#geom_line(aes(y = median, color=model_id)) +</span></span>
+<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="sc">~</span>variable, <span class="at">scale =</span> <span class="st">"free"</span>) <span class="sc">+</span></span>
+<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div id="fig-combo-unc2-parsed" class="quarto-figure quarto-figure-center quarto-float anchored">
+<figure class="quarto-float quarto-float-fig figure">
+<div aria-describedby="fig-combo-unc2-parsed-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+<img src="process-model-uncert_files/figure-html/fig-combo-unc2-parsed-1.png" class="img-fluid figure-img" width="672">
+</div>
+<figcaption class="quarto-float-caption-bottom quarto-float-caption quarto-float-fig" id="fig-combo-unc2-parsed-caption-0ceaefa1-69ba-4598-a22c-09a6ac19f8ca">
+Figure&nbsp;13: Forecast with all sources of uncertainty, with uncertainties separated by color. Median omited for clarity of image.
+</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>END OF ASSIGNMENT</p>
+<p>Extra code to ask questions about in class</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="co">#MY ATTEMPT AT A DIFFERENT WAY TO PLOT ALL UNCERTAINTY - INCORRECT</span></span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="co"># #| warning: FALSE</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a><span class="co"># #| fig-cap: Forecast with combined uncertainty</span></span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="co"># #| label: fig-combo-unc2</span></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a><span class="co"># combined_df |&gt; </span></span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a><span class="co">#   filter(variable %in% c("lai", "wood", "som", "nee")) |&gt; </span></span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a><span class="co">#   summarise(median = median(prediction, na.rm = TRUE), </span></span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a><span class="co">#             upper90 = quantile(prediction, 0.95, na.rm = TRUE),</span></span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a><span class="co">#             lower90 = quantile(prediction, 0.05, na.rm = TRUE),</span></span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a><span class="co">#             .by = c("datetime", "variable")) |&gt; </span></span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a><span class="co">#   ggplot(aes(x = datetime)) +</span></span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a><span class="co">#   geom_ribbon(aes(ymin = lower90, ymax = upper90), alpha = 0.7) +</span></span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a><span class="co">#   geom_line(aes(y = median)) +</span></span>
+<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a><span class="co">#   facet_wrap(~variable, scale = "free") +</span></span>
+<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a><span class="co">#   theme_bw()</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb42"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb42-1"><a href="#cb42-1" aria-hidden="true" tabindex="-1"></a><span class="co">#variance of combined uncertainty</span></span>
+<span id="cb42-2"><a href="#cb42-2" aria-hidden="true" tabindex="-1"></a><span class="co"># var_df_combo.unc&lt;-combined_df %&gt;% group_by(variable, datetime) %&gt;%</span></span>
+<span id="cb42-3"><a href="#cb42-3" aria-hidden="true" tabindex="-1"></a><span class="co">#   summarize(combo.unc=var(prediction))</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
