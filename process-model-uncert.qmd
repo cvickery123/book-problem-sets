@@ -395,10 +395,22 @@ Answer with text, code, and plots the following questions
 -   Plot the forecast with the combined uncertainty.
 
 ```{r}
+for(t in 2:length(sim_dates)){
+
+  new_output[t, , ]  <- forest_model(t, 
+                               states = matrix(new_output[t-1 , , 1:3], nrow = ens_members) , #initial condition
+                               parms = new_params, #parameter and process
+                               inputs = matrix(new_inputs_ensemble[t ,, ], nrow = ens_members)) #driver
+}
+
+totalUC_df <- output_to_df(new_output, sim_dates, sim_name = "total_UC")
+```
+
+```{r}
 #| warning: FALSE
 #| fig-cap: Forecast with combined uncertainty
 #| label: fig-combo-unc2
-combined_df |> 
+totalUC_df |> 
   filter(variable %in% c("lai", "wood", "som", "nee")) |> 
   summarise(median = median(prediction, na.rm = TRUE), 
             upper90 = quantile(prediction, 0.95, na.rm = TRUE),
@@ -411,11 +423,12 @@ combined_df |>
   theme_bw()
 ```
 
+
 -   If you calculate the variance of the combined uncertainty and compared to the sum of the individual variances, do they match? What does it mean if they are different?
 
 ```{r}
 #variance of combined uncertainty
-var_df_combo.unc<-combined_df %>% group_by(variable, datetime) %>%
+var_df_combo.unc<-totalUC_df %>% group_by(variable, datetime) %>%
   summarize(combo.unc=var(prediction))
 
 #sum of individual variances
@@ -427,18 +440,25 @@ var.comparison<-left_join(var_df_combo.unc, var_df_sum.var, by=c('variable', 'da
 
 var.comparison$var.diff<-var.comparison$combo.unc-var.comparison$sum.var
 var.comparison
-# total_uncertainty<-NULL
-# sim_dates.2<-sim_dates[-1]
-# for(j in sim_dates.2){
-# variance.j<-var_df %>% filter(datetime == j) %>% 
-#   group_by(variable, datetime) %>% 
-#   summarize(var.sum=sum(variance))
-# 
-# total_uncertainty<-rbind(total_uncertainty, variance.j)
-# }
 ```
 
-The variance of the combined uncertainty and the sum of the individual variances do not match, as shown in the var.diff column of the var.comparison dataframe. Often, the sum of individual variances is greater than the variance of the combine uncertainty. This means that there is overlap in the variances, which is accounted for in the variance of combined uncertainty but not in the sum of individual variances. Combining all sources of uncertainty produces a smaller variance, so multiple sources of uncertainty produce noise in similar regions. @fig-combo-unc2-parsed depicts this overlap in uncertainties. I would expect, therefore, that adding individual variances would greatly increase variance because the overlap is not accounted for in this approach.
+The variance of the combined uncertainty and the sum of the individual variances do not match, as shown in the var.diff column of the var.comparison dataframe. For SOM and Wood, the variance of combined uncertainty is almost exclusively greater than the sum of individual variance for each date (@fig-var-diff). For NEE, the sum of individual variances is greater than the variance of the combine uncertainty. For LAI, the variance of combined uncertainty is greater than the sum of individual variance for the first few weeks of the model horizon. Then, the sum of individual variance becomes almost exclusively greater than the variance of combined uncertainty later in the model horizon.
+
+```{r}
+#| warning: FALSE
+#| fig-cap: Variance of combined uncertainty minus sum of the individual variances by date. Positive values (brown) indicate that the variance of combined uncertainty is greater than the sum of individual variance. Negative values (red) indicate that sum of individual variance is greater than the variance of combined uncertainty. 
+#| label: fig-var-diff
+var.comparison %>% filter(variable %in% c("lai", "wood", "som", "nee")) %>%
+  ggplot() +
+  geom_point(aes(x=datetime, y=var.diff, color=var.diff)) + 
+  facet_wrap(~variable, scales="free")+
+  geom_hline(yintercept=0)+
+  theme_bw()+
+  scale_color_stepsn(
+    colors = c("red", "green"),
+    breaks = 0)
+```
+When the sum of individual variance is greater than the variance of combined uncertainty, there is overlap in the variances, which is accounted for in the variance of combined uncertainty but not in the sum of individual variances. Combining all sources of uncertainty produces a smaller variance, so multiple sources of uncertainty produce noise in similar regions. @fig-combo-unc2-parsed depicts this overlap in uncertainties. I would expect, therefore, that adding individual variances would greatly increase variance because the overlap is not accounted for in this approach. For LAI, the widening of process uncertainty beyond initial condition uncertainty halfway through the model horizon visually corresponds with the sum of individual variances overcoming variance of combined uncertainty from  @fig-var-diff. It makes sense that NEE has a higher sum of individual variances because NEE is the only variable that has all four sources of uncertainty. 
 
 ```{r}
 #| warning: FALSE
@@ -455,4 +475,32 @@ combined_df %>% filter(variable %in% c("lai", "wood", "som", "nee")) %>%
   geom_line(aes(y = median)) +
   facet_wrap(~variable, scale = "free") +
   theme_bw()
+```
+
+
+
+END OF ASSIGNMENT
+Extra code to ask questions about in class 
+```{r}
+#MY ATTEMPT AT A DIFFERENT WAY TO PLOT ALL UNCERTAINTY - INCORRECT
+# #| warning: FALSE
+# #| fig-cap: Forecast with combined uncertainty
+# #| label: fig-combo-unc2
+# combined_df |> 
+#   filter(variable %in% c("lai", "wood", "som", "nee")) |> 
+#   summarise(median = median(prediction, na.rm = TRUE), 
+#             upper90 = quantile(prediction, 0.95, na.rm = TRUE),
+#             lower90 = quantile(prediction, 0.05, na.rm = TRUE),
+#             .by = c("datetime", "variable")) |> 
+#   ggplot(aes(x = datetime)) +
+#   geom_ribbon(aes(ymin = lower90, ymax = upper90), alpha = 0.7) +
+#   geom_line(aes(y = median)) +
+#   facet_wrap(~variable, scale = "free") +
+#   theme_bw()
+```
+
+```{r}
+#variance of combined uncertainty
+# var_df_combo.unc<-combined_df %>% group_by(variable, datetime) %>%
+#   summarize(combo.unc=var(prediction))
 ```
