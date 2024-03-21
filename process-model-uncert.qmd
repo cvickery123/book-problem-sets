@@ -1,6 +1,8 @@
 ---
 title: "Process model uncertainity"
-format: html
+format:
+  html:
+      embed-resources: true
 editor: visual
 ---
 
@@ -299,6 +301,15 @@ combined_df <- bind_rows(parameter_df, process_df, initial_conditions_df, driver
 var_df<-combined_df %>% 
   group_by(model_id, datetime, variable) %>% 
   summarize(variance=var(prediction))
+
+#ANSWER FROM CLASS#
+combined_df |>
+  filter(variable %in% c("lai", "wood", "som", "nee")) |> 
+  summarize(var = var(prediction, na.rm = T), 
+            .by = c("model_id", "datetime", "variable")) |>
+  ggplot() +
+  geom_line(aes(x=datetime, y=var, color=model_id)) +
+  facet_wrap(~variable, scale="free")
 ```
 
 Answer with text, code, and plots the following questions
@@ -396,6 +407,13 @@ Answer with text, code, and plots the following questions
 -   Plot the forecast with the combined uncertainty.
 
 ```{r}
+#ANSWER FROM CLASS - NEED TO PREVENT OVERWRITING PARAMS 
+new_params <- params
+new_params$alpha <- rnorm(ens_members, params$alpha, sd = 0.005)
+new_params$sigma.leaf <- rep(0.1, ens_members)
+new_params$sigma.stem <- rep(1, ens_members) #0.01 ## wood biomass
+new_params$sigma.soil <- rep(1, ens_members)# 0.01
+
 for(t in 2:length(sim_dates)){
 
   new_output[t, , ]  <- forest_model(t, 
