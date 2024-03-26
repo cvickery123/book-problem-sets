@@ -37,32 +37,44 @@ bart_2019 <- d  %>%
 
 **Question 1:** How is gcc_90 related to day of year?
 
-**Answer 1:**
+**Answer 1:** gcc_90 is the 90th percentile of GCC on a given day of the year. For each day of year, gcc_90 returns the value for the 90th percentile of all GCC values that day. 
+Specifically, according to @fig-gcc_dt, gcc_90 remains relatively constant from the winter to summer, then gcc_90 increases quickly at the beginning of summer. GCC quantifies greenness, so it makes sense that GCC would increase when the trees would leaf out, which would be summertime in New Hampshire. 
 
 ```{r}
-#Add Answer
+#| echo: false
+#| fig-cap: Relationship between gcc_90 and datetime
+#| label: fig-gcc_dt
+ggplot(bart_2019) + 
+  geom_point(aes(x=datetime, y=observation))+
+  theme_bw()+
+  ylab("gcc_90")
 ```
 
 **Question 2:** Use a histogram to examine the distribution of the gcc_90
 
-**Answer 2:**
+**Answer 2:** gcc_90 is not normally distributed. In fact, according to @fig-hist_gcc, gcc_90 is heavily right-skewed for this time frame. 
 
 ```{r}
-#Add Answer
+#| echo: false
+#| fig-cap: Histogram of gcc_90 values
+#| label: fig-hist_gcc
+hist(bart_2019$observation, main = "", xlab = "gcc_90")
 ```
 
-First create a function called \`pred_logistic' that is your process model. The model is the the logistic curve which ish the equation $$P_1 + P_2 {{exp(P_3 + P_4 x)}\over{1+exp(P_3 + P_4 x)}}$$
+First create a function called \`pred_logistic' that is your process model. The model is the the logistic curve which is the equation $$P_1 + P_2 {{exp(P_3 + P_4 x)}\over{1+exp(P_3 + P_4 x)}}$$
 
 **Question 3:** Is this process model a dynamic model? Why or why not?
 
-**Answer 3:**
+**Answer 3:** This process model is not a dynamic model because it does not depend on the previous model state. 
 
 **Question 4:** Based on the equation above, write a function that predicts the gcc_90 as a function of the parameters ($P$) and x where x is the DOY. Name that function `pred_logistic`.
 
 **Answer 4:**
 
 ```{r}
-#Add Answer
+pred_logistic<-function(x, par){
+  y<-par[1] + par[2] * (exp(par[3] + par[4]*x)/(1+exp(par[3] + par[4]*x)))
+}
 ```
 
 **Question 5:** Write a function that calculates the negative log-likelihood of the data given a set of parameters governing the process and data models. Assume a normal distribution and be sure to estimate the sd in the data model.
@@ -70,7 +82,9 @@ First create a function called \`pred_logistic' that is your process model. The 
 **Answer 5:**
 
 ```{r}
-#Add Answer
+LL_fn <- function(par, x, y){
+  -sum(dnorm(y, mean = pred_logistic(x, par), sd = par[5], log = TRUE))
+}
 ```
 
 **Question 6:** Use the `optim` function to find the most likely parameter values. Use the following as starting values `par = c(0.34,0.11,-15,0.11, 1)` where the first four are the theta parameters from your process model and the fifth is the sd of your data model.
@@ -78,7 +92,7 @@ First create a function called \`pred_logistic' that is your process model. The 
 **Answer 6:**
 
 ```{r}
-#Add Answer
+fit <- optim(par = c(0.34,0.11,-15,0.11, 1), fn = LL_fn, method = "BFGS", x = bart_2019$doy, y = bart_2019$observation)
 ```
 
 **Question 7:** Use your optimal parameters in the `pred_logistic` function to predict the data. Save this as the object `predicted`
@@ -86,7 +100,11 @@ First create a function called \`pred_logistic' that is your process model. The 
 **Answer 7:**
 
 ```{r}
-#Add Answer
+predicted<-pred_logistic(bart_2019$doy, fit$par)
+
+ggplot()+
+  geom_point(data=bart_2019, aes(x=doy, y=observation))+
+  geom_line(aes(x=bart_2019$doy, y=pred_logistic(x=bart_2019$doy, par=fit$par)))
 ```
 
 **Question 8:** Calculate the residuals and plot a histogram of the residuals
@@ -94,12 +112,17 @@ First create a function called \`pred_logistic' that is your process model. The 
 **Answer 8:**
 
 ```{r}
-#Add Answer
+residuals <- predicted - bart_2019$observation
+
+#| echo: false
+#| fig-cap: Histogram of gcc_90 residual values
+#| label: fig-hist_gccres
+hist(residuals, main = "", xlab = "gcc_90 residuals")
 ```
 
 **Question 9:** How does the distribution of the data (Question 2) compare to the distribution of the residuals?
 
-**Answer 9:**
+**Answer 9:** The data are not normally distributed, but the residuals are relatively normally distributed. 
 
 **Question 10:** Predict year 2020 using the process model parameters from the 2019 fit.
 
@@ -149,6 +172,3 @@ Use maximum likelihood to estimate the parameters in the model that predicts the
 $$\theta_1 * \theta_2 ^{{(T - 20)}\over{10}}$$
 
 Show all the steps to determine the most likely parameter values, report the parameter values, and plot the data and predictions on the same plot
-
-
-
