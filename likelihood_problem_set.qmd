@@ -126,16 +126,7 @@ hist(residuals, main = "", xlab = "gcc_90 residuals")
 
 **Question 10:** Predict year 2020 using the process model parameters from the 2019 fit.
 
-```{r}
-#Add Answer
-```
-
 **Answer 10:**
-
-**Question 11:** Plot the forecast from Question 10 over the data from 2020 (I give the code for getting the 2020 data)
-
-**Answer 11:**
-
 ```{r}
 bart_2020 <- d  %>%
   filter(site_id == "BART",
@@ -145,11 +136,24 @@ bart_2020 <- d  %>%
   mutate(doy = yday(datetime)) %>% 
   filter(!is.na(observation),
          observation > 0)
+
+predicted2020<-pred_logistic(bart_2020$doy, fit$par)
+##NOT SURE IF THAT IS RIGHT--ASK FRIENDS IN CLASS THURSDAY
+```
+
+**Question 11:** Plot the forecast from Question 10 over the data from 2020 (I give the code for getting the 2020 data)
+
+**Answer 11:**
+
+```{r}
+ggplot()+
+  geom_point(data=bart_2020, aes(x=doy, y=observation))+
+  geom_line(aes(x=bart_2020$doy, y=predicted2020))
 ```
 
 **Question 12:** Do you think your model from 2019 is reasonable for predicting 2020?
 
-**Answer 12:**
+**Answer 12:** I think the model from 2019 is reasonable for predicting 2020 because the model just uses day of year to predict greenness on a given day. One assumption we make is that spring comes around the same time of year in 2020 as 2019, which might not always be the case. However, given the fit of the model to the actual 2020 data, this assumption seems justified. 
 
 ### Part 2 {#sec-q10}
 
@@ -172,3 +176,13 @@ Use maximum likelihood to estimate the parameters in the model that predicts the
 $$\theta_1 * \theta_2 ^{{(T - 20)}\over{10}}$$
 
 Show all the steps to determine the most likely parameter values, report the parameter values, and plot the data and predictions on the same plot
+
+
+
+
+
+
+
+
+
+
