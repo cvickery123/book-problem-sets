@@ -92,7 +92,9 @@ LL_fn <- function(par, x, y){
 **Answer 6:**
 
 ```{r}
+#| warning: false
 fit <- optim(par = c(0.34,0.11,-15,0.11, 1), fn = LL_fn, method = "BFGS", x = bart_2019$doy, y = bart_2019$observation)
+fit
 ```
 
 **Question 7:** Use your optimal parameters in the `pred_logistic` function to predict the data. Save this as the object `predicted`
@@ -101,7 +103,11 @@ fit <- optim(par = c(0.34,0.11,-15,0.11, 1), fn = LL_fn, method = "BFGS", x = ba
 
 ```{r}
 predicted<-pred_logistic(bart_2019$doy, fit$par)
-
+```
+```{r}
+#| echo: false
+#| fig-cap: Fit of logistic model to 2019 data
+#| label: fig-nineteenfit
 ggplot()+
   geom_point(data=bart_2019, aes(x=doy, y=observation))+
   geom_line(aes(x=bart_2019$doy, y=pred_logistic(x=bart_2019$doy, par=fit$par)))
@@ -113,7 +119,8 @@ ggplot()+
 
 ```{r}
 residuals <- predicted - bart_2019$observation
-
+```
+```{r}
 #| echo: false
 #| fig-cap: Histogram of gcc_90 residual values
 #| label: fig-hist_gccres
@@ -146,6 +153,9 @@ predicted2020<-pred_logistic(bart_2020$doy, fit$par)
 **Answer 11:**
 
 ```{r}
+#| echo: false
+#| fig-cap: Forecast from Question 10 over 2020 data
+#| label: fig-twentytwentyfit
 ggplot()+
   geom_point(data=bart_2020, aes(x=doy, y=observation))+
   geom_line(aes(x=bart_2020$doy, y=predicted2020))
@@ -177,12 +187,39 @@ $$\theta_1 * \theta_2 ^{{(T - 20)}\over{10}}$$
 
 Show all the steps to determine the most likely parameter values, report the parameter values, and plot the data and predictions on the same plot
 
+```{r}
+#| warning: false
+#Process model
+pred_q10<-function(x, par){
+  y<-par[1] * par[2]**((x-20)/10)
+}
 
+#Probability model
+LL_fn_q10 <- function(par, x, y){
+  -sum(dnorm(y, mean = pred_q10(x, par), sd = par[3], log = TRUE))
+}
 
+#Fit
+fit_q10 <- optim(par = c(6,2,1), fn = LL_fn_q10, method = "BFGS", x = df$soil_temp, y = df$soil_resp)
+predicted_q10<-pred_q10(df$soil_temp, fit_q10$par)
 
+#Most likely parameter values
+fit_q10$par
+```
 
+Using optim, I found the most likely parameters to be
 
+$$\theta_1 = 6.7456187$$
+$$\theta_2 = 2.3493417$$
+with a standard deviation of 0.6820145. 
 
+@fig-sr-st shows the data and predictions on the same plot. 
 
-
-
+```{r}
+#| echo: false
+#| fig-cap: Model fit predicting soil respiration using soil temperature
+#| label: fig-sr-st
+ggplot()+
+  geom_point(data=df, aes(x=soil_temp, y=soil_resp))+
+  geom_line(aes(x=df$soil_temp, y=predicted_q10))
+```
