@@ -135,6 +135,13 @@ hist(residuals, main = "", xlab = "gcc_90 residuals")
 
 **Answer 10:**
 ```{r}
+predicted2020<-pred_logistic(bart_2019$doy, fit$par)
+```
+
+**Question 11:** Plot the forecast from Question 10 over the data from 2020 (I give the code for getting the 2020 data)
+
+**Answer 11:**
+```{r}
 bart_2020 <- d  %>%
   filter(site_id == "BART",
          datetime > as_date("2020-01-01"),
@@ -143,22 +150,14 @@ bart_2020 <- d  %>%
   mutate(doy = yday(datetime)) %>% 
   filter(!is.na(observation),
          observation > 0)
-
-predicted2020<-pred_logistic(bart_2020$doy, fit$par)
-##NOT SURE IF THAT IS RIGHT--ASK FRIENDS IN CLASS THURSDAY
 ```
-
-**Question 11:** Plot the forecast from Question 10 over the data from 2020 (I give the code for getting the 2020 data)
-
-**Answer 11:**
-
 ```{r}
 #| echo: false
 #| fig-cap: Forecast from Question 10 over 2020 data
 #| label: fig-twentytwentyfit
 ggplot()+
   geom_point(data=bart_2020, aes(x=doy, y=observation))+
-  geom_line(aes(x=bart_2020$doy, y=predicted2020))
+  geom_line(aes(x=bart_2019$doy, y=predicted2020))
 ```
 
 **Question 12:** Do you think your model from 2019 is reasonable for predicting 2020?
