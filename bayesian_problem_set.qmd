@@ -1,6 +1,8 @@
 ---
 title: "Parameter calibration: Bayesian methods"
-format: html
+format: 
+  html:
+      embed-resources: true
 editor: visual
 ---
 
@@ -138,16 +140,41 @@ p2 <- ggplot(d, aes(x = value)) +
 p1 / p2
 ```
 
+```{r}
+#read in dataset
+df <- read_csv("https://raw.githubusercontent.com/frec-5174/eco4cast-in-R-book/main/data/soil_respiration_module_data.csv", show_col_types = FALSE)
+```
+
+Information about the dataset: 
+
+It is a dataset that reports soil respiration, soil temperature, and soil moisture over a year at the University of Michigan Biological Station (from Nave, L.E., N. Bader, and J.L. Klug)
+
+The columns correspond to the following
+
+-   doy = Day of Year\
+-   soil_resp: Soil respiration (micromoles CO2 per m2 per second)\
+-   soil_temp: Soil Temp (deg C) soil_moisture: Soil Moisture (%)\
+
+
 **Question 1**: Provide the distribution and parameters describing the distribution for your prior distributions. Justify why you chose the distribution and parameters. (do not spend time looking at the literature for values to use to build prior distribution - just give plausible priors and say why their plausible)
 
-**Answer 1:**
+**Answer 1:** With this dataset, I am trying to relate soil temperature and soil respiration, and my three parameters are soil temperature, soil respiration, and standard deviation. 
+
+I know soil respiration will not be below zero, but I do not know the maximum value for soil respiration. Therefore, I would set zero as the lower bound for a block distribution, maxing out at infinity. 
+
+Soil temperature is in degrees C, so a block distribution ranging from 0 to 100 would be a reasonable prior distribution. I know the soil would not reach water's boiling point, but I do not know the maximum likely temperature of soil to confidently have a prior less than 100 deg C. 
+
+Standard deviation can also not be less than zero, but I again do not have an idea of how high standard deviation might max out at. Therefore, I would need another block distribution starting at zero and continuing until infinity. 
 
 **Question 2:** Provide plots of your prior distributions.
 
 **Answer 2:**
 
 ```{r}
+prior<-tibble(temperature= c(0:100))
 
+ggplot() +
+  geom_line(aes(x=prior$temperature), y=1)
 
 ```
 
