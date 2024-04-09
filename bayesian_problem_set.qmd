@@ -162,7 +162,7 @@ The columns correspond to the following
 
 I know soil respiration will not be below zero, but I do not know the maximum value for soil respiration. Therefore, I would set zero as the lower bound for a block distribution, maxing out at infinity. 
 
-Soil temperature is in degrees C, so a block distribution ranging from 0 to 100 would be a reasonable prior distribution. I know the soil would not reach water's boiling point, but I do not know the maximum likely temperature of soil to confidently have a prior less than 100 deg C. 
+Soil temperature is in degrees C, so a block distribution ranging from 0 to 100 would be a reasonable prior distribution. I know the soil would not reach water's boiling point, but I do not know the maximum likely temperature of soil to confidently have a maximum prior less than 100 deg C. 
 
 Standard deviation can also not be less than zero, but I again do not have an idea of how high standard deviation might max out at. Therefore, I would need another block distribution starting at zero and continuing until infinity. 
 
@@ -182,8 +182,8 @@ moist.dist<-plot(x, y, type = 'l', lwd = 3, ylim = c(-.1, .3), col='blue',
      xlab='soil moisture', ylab='Probability', main='soil moisture distribution')
 
 #standard deviation
-hist(dgamma(x, shape=1.5, scale=2))
-#hist(dgeom(x, 0.2))
+sd.dist<-plot(x, y, type = 'l', lwd = 3, ylim = c(-.1, .3), col='red',
+     xlab='standard deviation', ylab='Probability', main='standard deviation distribution')
 ```
 
 **Question 3:** Modify the code above to estimate the posterior distribution of your parameters. Put your modified code below.
@@ -191,8 +191,104 @@ hist(dgamma(x, shape=1.5, scale=2))
 **Answer 3:**
 
 ```{r}
+#Set MCMC Configuration
+num_iter <- 1000
+num_pars <- 3
+jump <- c(0.1, 0.1, 0.1)
+accept<-0
 
+#get x and y from data
+x<-df$soil_temp
+y<-df$soil_resp
 
+#Initialize chain
+pars <- array(NA, dim = c(num_pars, num_iter))
+#starting parameters using optimized values from likelihood analysis
+pars[1, 1] <- 6.7456187
+pars[2, 1] <- 2.3493417
+pars[3, 1] <- 0.6820145
+log_likelihood_prior_current <- -10000000000
+
+for(i in 2:num_iter){
+  
+  #Loop through parameter value
+  
+  for(j in 1:num_pars){
+      #Randomly select new parameter values
+    proposed_pars <- pars[, i - 1]
+    proposed_pars[j] <- rnorm(1, mean = pars[j, i - 1], sd = jump[j])
+    
+    ##########################
+    # PRIORS
+    #########################
+    #(remember that you multiply probabilities which mean you can add log(probability))
+    log_prior <- dunif(proposed_pars[1], min = 0, max = 100, log = TRUE) + 
+      dunif(proposed_pars[2], min = 0, max = 100, log = TRUE) 
+    
+    #Likelihood.  
+    #You could use:
+    # pred <- process_model(x, pars = proposed_pars)
+    # log_likelihood <- sum(dnorm(new_data, mean = pred, sd = sd_data, log = TRUE)
+    # but we are looping here because it transitions well to the next section of the course
+    log_likelihood <- rep(NA, length(x))
+    pred <- rep(NA, length(x))
+    for(m in 1:length(x)){
+      ##########################
+      # PROCESS MODEL
+      #########################
+      pred[m] <- proposed_pars[1] * proposed_pars[2]**((x[m]-20)/10)
+      ##########################
+      # DATA MODEL
+      #########################
+      log_likelihood[m] <- dnorm(y[m], mean = pred[m], sd = proposed_pars[3], log = TRUE)
+    }
+    #Remember that you multiply probabilities which mean you can add log(probability)
+    #Hence the use of sum
+    log_likelihood <- sum(log_likelihood)
+    
+    ############################
+    ###  PRIOR x LIKELIHOOD
+    ############################
+    #Combine the prior and likelihood
+    #remember that you multiply probabilities which means you can add log(probability)
+    log_likelihood_prior_proposed <- log_prior + log_likelihood
+    
+    #We want the ratio of new / old but since it is in log space we first
+    #take the difference of the logs: log(new/old) = log(new) - log(old) 
+    # and then take out of log space exp(log(new) - log(old))
+    z <- exp(log_likelihood_prior_proposed - log_likelihood_prior_current)
+    
+    #Now pick a random number between 0 and 1
+    r <- runif(1, min = 0, max = 1)
+    #If z > r then accept the new parameters
+    #Note: this will always happen if the new parameters are more likely than
+    #the old parameters z > 1 means than z is always > r no matter what value of
+    #r is chosen.  However it will accept worse parameter sets (P_new is less
+    #likely then P_old - i.e., z < 1) in proportion to how much worse it is
+    #For example: if z = 0.9 and then any random number drawn by runif that is
+    #less than 0.90 will result in accepting the worse values (i.e., the slightly
+    #worse values will be accepted a lot of the time).  In contrast, if z = 0.01
+    #(i.e., the new parameters are much much worse), then they can still be accepted
+    #but much more rarely because random r values of < 0.1 occur more rarely
+    if(log(z) > log(r)){
+      pars[j, i] <- proposed_pars[j]
+      log_likelihood_prior_current <- log_likelihood_prior_proposed
+      accept <- accept + 1
+    }else{
+      pars[j, i] <- pars[j, i - 1]
+      log_likelihood_prior_current <- log_likelihood_prior_current #this calculation isn't necessary but is here to show you the logic
+    }
+  }
+}
+
+d <- tibble(iter = 1:num_iter,
+            par1 = pars[1, ],
+            par2 = pars[2, ],
+            par3 = pars[3, ]) %>%
+  pivot_longer(-iter, values_to = "value", names_to = "parameter")
+
+#examine acceptance rate (goal is 23-45%)
+accept / (num_iter * num_pars)
 ```
 
 **Question 4:** Plot the your MCMC chain for all parameters (iteration \# will be the x-axis)
@@ -200,39 +296,75 @@ hist(dgamma(x, shape=1.5, scale=2))
 **Answer 4:**
 
 ```{r}
+#| warning: FALSE
 
+p1 <- ggplot(d, aes(x = iter, y = value)) +
+  geom_line() +
+  facet_wrap(~parameter, scales = "free") +
+  theme_bw()
+
+p2 <- ggplot(d, aes(x = value)) +
+  geom_histogram() +
+  facet_wrap(~parameter, scales = "free") +
+  theme_bw()
+
+p1 / p2
 
 ```
 
 **Question 5:** Approximately how many iterations did it take your chain to converge to a straight line with constant variation around the line (i.e., a fuzzy caterpillar). This is the burn-in. If your chain did not converge, modify the `jump` variable for each parameters and/or increase your iterations. You should not need more than 10000 iterations for convergence so running the chain for a long period of time will not fix issues that could be fixed by modifying the `jump` variable. Also, pay attention to the `sd_data` parameter. You should estimate it as a parameter or set it to a reasonable value. If it is too small your chain will fail because the probability of the some of parameters that are explored functionally zero.
 
-**Answer 5:**
+**Answer 5:** Because I used the starting parameters from the likelihood problem set, my chain converged *very* quickly. There was really no burn-in, especially because values both above and below my starting values were regularly accepted in the z>r test for all parameters. My starting parameters were within one jump step of the mean parameter values. 
 
 **Question 6:** Remove the iterations between 1 and your burn-in number and plot the histograms for your parameters.
 
+**Answer 6:**
 ```{r}
+nburn<-1 #because I had no burn-in
+d_MCMC <- tibble(iter = nburn:num_iter,
+            par1 = pars[1, nburn:num_iter],
+            par2 = pars[2, nburn:num_iter],
+            par3 = pars[3, nburn:num_iter])
 
+hist(d_MCMC$par1, main="Soil temperature parameter distribution", xlab = "Soil temperature parameter")
+hist(d_MCMC$par2, main="Soil moisture parameter distribution", xlab = "Soil moisture parameter")
+hist(d_MCMC$par3, main="Standard deviation distribution", xlab = "Standard deviation")
 
 ```
-
-**Answer 6:**
 
 **Question 7:** Provide the mean and 95% Credible Intervals for each parameter
 
+**Answer 7:**
 ```{r}
+#soil temperature mean
+d_MCMC %>% summarize(mean(par1)) %>% as.vector()
+#soil moisture mean
+d_MCMC %>% summarize(mean(par2)) %>% as.vector()
+#standard deviation mean
+d_MCMC %>% summarize(mean(par3)) %>% as.vector()
 
+#quantile for soil temperature
+quantile(x=d_MCMC$par1, probs=c(0.025, 0.975))
+#quantile for soil moisture
+quantile(x=d_MCMC$par2, probs=c(0.025, 0.975))
+#quantile for standard deviation
+quantile(x=d_MCMC$par3, probs=c(0.025, 0.975))
 
 ```
-
-**Answer 7:**
 
 **Question 8:** Random select 1000 values from the parameters in your posterior distribution. Show the randomly selected values for each parameter as a histogram.
 
 **Answer 8:**
 
 ```{r}
+index<-sample(nburn:num_iter, 1000, replace=T)
+temp1000<-pars[1, index]
+moist1000<-pars[2, index]
+sd1000<-pars[3, index]
 
-
+hist(temp1000, main="1000 values soil temperature dist", xlab = "Soil temperature parameter")
+hist(moist1000, main="1000 values soil moisture dist", xlab = "Soil moisture parameter")
+hist(sd1000, main="1000 values standard dev dist", xlab = "Standard deviation")
 ```
 
 **Question 9:** Use the samples from Question 8 to generate posterior predictions of soil respiration at the observed temperature values (i.e., the same temperature data used in your model fit). Provide a plot with temperature on the x-axis and respiration on the y-axis. The plot should have the mean and 95% predictive uncertainty bounds (i.e., include uncertainty in parameters and in the data model)
