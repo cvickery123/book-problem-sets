@@ -372,5 +372,52 @@ hist(sd1000, main="1000 values standard dev dist", xlab = "Standard deviation")
 **Answer 9:**
 
 ```{r}
+output<-NULL
+output_test<-NULL
+for(t in 2:length(df$doy)){
+  for(m in 1:1000) {
+    pred[m] <- temp1000[m] * moist1000[m]**((x[t]-20)/10)
+    
+  }
+  output<-tibble(pred.resp= pred, 
+                 obs.temp=x[t], 
+                 time=t, 
+                 par1=temp1000,
+                 par2=moist1000)
+  
+  output_test<-rbind(output_test, output)
+}
+
+lowquant<-NULL
+upquant<-NULL
+mean.resp<-NULL
+for(f in 2:length(df$doy)){
+  chosen<-output_test %>% filter(time==f)
+  mean.resp[f]<-chosen %>% filter(time==f) %>% summarize(mean(pred.resp)) %>% as.numeric()
+    lowquant[f]<-quantile(chosen$pred.resp, probs=c(0.025))
+    upquant[f]<-quantile(chosen$pred.resp, probs=c(0.975))
+}
+
+dftobind<-tibble(mean.resp=mean.resp,
+                 lowquant=lowquant,
+                 upquant=upquant,
+                    time=1:length(df$doy))
+
+finalout<-left_join(output_test, dftobind, by='time') 
+
+#Distribution of predicted respiration values
+hist(finalout$pred.resp,main="Posterior Respiration Histogram", xlab = "Respiration")
+
+#plot of temperature and mean respiration with 95% certainty interval
+ggplot(data=finalout) +
+  geom_ribbon(aes(ymin = lowquant, ymax = upquant, x=obs.temp, fill="red"), alpha = 0.5, show.legend = F) +
+  geom_line(aes(y = mean.resp, x=obs.temp), color="red") +
+  # geom_point(aes(x = obs.temp, y = pred.resp), color = "blue", size=0.2, alpha=0.1) +
+  theme_bw()+
+  ylab("Predicted Respiration")+
+  xlab("Observed Temperature (deg C)")
+
+#uncomment to save save posteriors
+#write_csv(finalout, "respiration.posteriors.csv")
 
 ```
