@@ -221,15 +221,10 @@ for(i in 2:num_iter){
     ##########################
     # PRIORS
     #########################
-    #(remember that you multiply probabilities which mean you can add log(probability))
     log_prior <- dunif(proposed_pars[1], min = 0, max = 100, log = TRUE) + 
       dunif(proposed_pars[2], min = 0, max = 100, log = TRUE) 
     
     #Likelihood.  
-    #You could use:
-    # pred <- process_model(x, pars = proposed_pars)
-    # log_likelihood <- sum(dnorm(new_data, mean = pred, sd = sd_data, log = TRUE)
-    # but we are looping here because it transitions well to the next section of the course
     log_likelihood <- rep(NA, length(x))
     pred <- rep(NA, length(x))
     for(m in 1:length(x)){
@@ -242,41 +237,29 @@ for(i in 2:num_iter){
       #########################
       log_likelihood[m] <- dnorm(y[m], mean = pred[m], sd = proposed_pars[3], log = TRUE)
     }
-    #Remember that you multiply probabilities which mean you can add log(probability)
-    #Hence the use of sum
+
     log_likelihood <- sum(log_likelihood)
     
     ############################
     ###  PRIOR x LIKELIHOOD
     ############################
     #Combine the prior and likelihood
-    #remember that you multiply probabilities which means you can add log(probability)
     log_likelihood_prior_proposed <- log_prior + log_likelihood
     
-    #We want the ratio of new / old but since it is in log space we first
-    #take the difference of the logs: log(new/old) = log(new) - log(old) 
-    # and then take out of log space exp(log(new) - log(old))
+    #ratio of new / old
     z <- exp(log_likelihood_prior_proposed - log_likelihood_prior_current)
     
-    #Now pick a random number between 0 and 1
+    #pick a random number between 0 and 1
     r <- runif(1, min = 0, max = 1)
+    
     #If z > r then accept the new parameters
-    #Note: this will always happen if the new parameters are more likely than
-    #the old parameters z > 1 means than z is always > r no matter what value of
-    #r is chosen.  However it will accept worse parameter sets (P_new is less
-    #likely then P_old - i.e., z < 1) in proportion to how much worse it is
-    #For example: if z = 0.9 and then any random number drawn by runif that is
-    #less than 0.90 will result in accepting the worse values (i.e., the slightly
-    #worse values will be accepted a lot of the time).  In contrast, if z = 0.01
-    #(i.e., the new parameters are much much worse), then they can still be accepted
-    #but much more rarely because random r values of < 0.1 occur more rarely
     if(log(z) > log(r)){
       pars[j, i] <- proposed_pars[j]
       log_likelihood_prior_current <- log_likelihood_prior_proposed
       accept <- accept + 1
     }else{
       pars[j, i] <- pars[j, i - 1]
-      log_likelihood_prior_current <- log_likelihood_prior_current #this calculation isn't necessary but is here to show you the logic
+      log_likelihood_prior_current <- log_likelihood_prior_current 
     }
   }
 }
@@ -410,12 +393,15 @@ hist(finalout$pred.resp,main="Posterior Respiration Histogram", xlab = "Respirat
 
 #plot of temperature and mean respiration with 95% certainty interval
 ggplot(data=finalout) +
-  geom_ribbon(aes(ymin = lowquant, ymax = upquant, x=obs.temp, fill="red"), alpha = 0.5, show.legend = F) +
+  geom_ribbon(aes(ymin = lowquant, ymax = upquant, x=obs.temp, fill="red"), alpha = 0.5, show.legend = T) +
   geom_line(aes(y = mean.resp, x=obs.temp), color="red") +
   # geom_point(aes(x = obs.temp, y = pred.resp), color = "blue", size=0.2, alpha=0.1) +
   theme_bw()+
   ylab("Predicted Respiration")+
-  xlab("Observed Temperature (deg C)")
+  xlab("Observed Temperature (deg C)")+
+  ggtitle("Using Temperature to Predict Respiration")+
+  theme(legend.title=element_blank())+
+  scale_fill_discrete(labels="95% CI")
 
 #uncomment to save save posteriors
 #write_csv(finalout, "respiration.posteriors.csv")
