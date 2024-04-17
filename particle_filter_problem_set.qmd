@@ -43,7 +43,7 @@ This step is already done for you.
 Here is the data for ages 1 through 50 for the plot (starting in 1950-01-01). It was measured every 5 years.
 
 ```{r}
-plot_data <- read_csv("https://github.com/frec-5174/eco4cast-in-R-book/blob/main/data/PF_data1.csv", show_col_types = FALSE)
+plot_data <- read_csv("https://github.com/frec-5174/eco4cast-in-R-book/raw/main/data/PF_data1.csv", show_col_types = FALSE)
 ```
 
 ```{r}
@@ -98,7 +98,63 @@ Be sure to:
 -   The standard deviation for the obseravtions (`sd_data`) is 200.
 
 ```{r}
-#ADD CODE TO SET UP PF HERE
+num_particles <- 25
+
+y <- df$age50_biomass
+
+num_time_steps <- length(y)
+
+#This sets all the observations to NA after the first
+y[2:num_time_steps] <- NA
+
+sd_init <- sd(y)
+sd_add <- mean(df$sd_add)
+sd_obs <- 200
+
+g.mean<-mean(df$g)
+u.mean<-mean(df$u)
+
+x <- array(NA, dim = c(num_time_steps, num_particles))
+x_prior <- x 
+
+x[1, ] <- rnorm(num_particles, mean = y[1], sd = sd_obs)
+x_prior[1, ] <- x[1, ]
+
+### resampling bootstrap particle filter
+
+for(t in 2:num_time_steps){
+  
+  ## forward step
+  for(m in 1:num_particles){
+    previousbiomass<-x[t - 1, m  ]
+    x[t, m ] <- previousbiomass + g.mean - u.mean*previousbiomass + rnorm(1, mean = 0, sd = sd_add)
+  }
+  
+  x_prior[t, ] <- x[t, ]
+ 
+  ## analysis step
+  if(!is.na(y[t])){ 
+
+      ## calculate Likelihood (weights)
+      wt <- dnorm(y[t], mean = x[t, ], sd = sd_obs)    ## calculate likelihood (weight)
+      
+      wt_norm <- wt / sum(wt)
+      
+      ## resample ensemble members in proportion to their weight
+      resample_index <- sample(1:num_particles, num_particles, replace = TRUE, prob = wt_norm) 
+      
+      x[t, ] <- x[t, resample_index]  ## update state
+    }
+}
+
+tibble(time = 1:num_time_steps,
+       as_tibble(x)) %>% 
+  pivot_longer(cols = -time, names_to = "ensemble", values_to = "x") |> 
+  #mutate(x = exp(x)) |> 
+  ggplot(aes(x = time, y = x, group = factor(ensemble))) +
+  geom_line()
+  labs(x = "time", y = "biomass") +
+  theme_bw()
 ```
 
 #### Step 2: Run particle filter
