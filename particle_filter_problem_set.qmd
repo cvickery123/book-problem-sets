@@ -95,20 +95,16 @@ Be sure to:
 
 -   use the mean values for `g`, `u`, and `sd_add` from the MCMC chain as the parameter values
 -   use the distribution of the biomass at age 50 in the MCMC chain as your initial state for the PF
--   The standard deviation for the obseravtions (`sd_data`) is 200.
+-   The standard deviation for the observations (`sd_data`) is 200.
 
 ```{r}
 num_particles <- 25
 num_time_steps <- 21
 
-# sim_dates <- seq(as_date("1950-01-01"), length.out = 50, by = "1 year")
-# biomass<- array(NA, dim=c(length(sim_dates), num_particles))
-
-
 y <- array(NA, dim=c(length(num_time_steps), num_particles))
 
-
-sd_init <- sd(y)
+# QUESTION, IS SD_INIT THE SD(Y) OR SD(DF$AGE50_BIOMASS)?
+sd_init <- sd(df$age50_biomass)
 sd_add <- mean(df$sd_add)
 sd_obs <- 200
 
@@ -118,7 +114,6 @@ u.mean<-mean(df$u)
 x <- array(NA, dim = c(num_time_steps, num_particles))
 x_prior <- x 
 x[1, ]<-sample(df$age50_biomass, num_particles, replace=T)
-#x[1, ] <- rnorm(num_particles, mean = y[1], sd = sd_obs)
 x_prior[1, ] <- x[1, ]
 ```
 
@@ -133,11 +128,10 @@ for(t in 2:num_time_steps){
   
   ## forward step
   for(m in 1:num_particles){
-    #x[t, m ] <- x[t - 1, m  ] + rnorm(1, mean = 0, sd = sd_add)
     previousbiomass<-x[t - 1, m  ]
     newbiomass<- previousbiomass + g.mean - u.mean*previousbiomass 
     x[t, m ]<- newbiomass + rnorm(1, mean = 0, sd = sd_add)
-  } #FATAL ERROR HAPPENING HERE
+  } 
   
   x_prior[t, ] <- x[t, ]
  
@@ -169,7 +163,7 @@ xL$age50<-xL$time + 49
 xL %>% 
   ggplot(aes(x = age50, y = x, group = factor(ensemble))) +
   geom_line(show.legend = F)+
-  labs(x = "age", y = "aboveground biomass (gC/m2)") +
+  labs(x = "Age (years)", y = "Aboveground Biomass (gC/m2)") +
   theme_bw()+
   geom_hline(yintercept=6022, color="red")
 ```
@@ -205,7 +199,7 @@ Using the new data, repeat the PF set up in Part 2 Step 1. You will be starting 
 num_particles <- 25
 num_time_steps <- 21
 
-sd_init <- sd(y)
+sd_init <- sd(df$age50_biomass)
 sd_add <- mean(df$sd_add)
 sd_obs <- 200
 g.mean<-mean(df$g)
@@ -229,11 +223,10 @@ for(t in 2:num_time_steps){
   
   ## forward step
   for(m in 1:num_particles){
-    #x[t, m ] <- x[t - 1, m  ] + rnorm(1, mean = 0, sd = sd_add)
     previousbiomass<-x[t - 1, m  ]
     newbiomass<- previousbiomass + g.mean - u.mean*previousbiomass 
     x[t, m ]<- newbiomass + rnorm(1, mean = 0, sd = sd_add)
-  } #FATAL ERROR HAPPENING HERE
+  } 
   
   x_prior[t, ] <- x[t, ]
  
@@ -257,6 +250,7 @@ for(t in 2:num_time_steps){
 Generate a plot that visualizes the output of the PF (see examples from the lecture). Your plot must have age on the x-axis and biomass on the y-axis with different lines for the particles. Your observations from the new data must be on the plot.
 
 ```{r}
+#| warning: false
 xL<-tibble(time = 1:num_time_steps,
        as_tibble(x)) %>% 
   pivot_longer(cols = -time, names_to = "ensemble", values_to = "x")
@@ -265,7 +259,7 @@ xL$age50<-xL$time + 49
 ggplot() +
   geom_line(data=xL, aes(x = age50, y = x, group = factor(ensemble)))+
   geom_point(data= new_data, aes(x=age, y=biomass))+
-  labs(x = "age", y = "aboveground biomass (gC/m2)") +
+  labs(x = "Age (years)", y = "Aboveground Biomass (gC/m2)") +
   theme_bw()
 ```
 
@@ -280,11 +274,44 @@ assimilated_forecast<-x
 Combine the two PF forecast and evaluate how data assimilation influence the forecast of the last 10 years (age 60 to 70). Produce a plot with the mean and 90% CI for the initial_forecast and assimilated_forecast on the same plot. Include the observations from the new data set.
 
 ```{r}
-#ADD CODE TO COMPARE THE TWO PF OUTPUTS
+#| warning: false
+assimilated.df<-tibble(time = 1:num_time_steps,
+       as_tibble(assimilated_forecast)) %>% 
+  pivot_longer(cols = -time, names_to = "ensemble", values_to = "assimilated")
+
+initial.df<-tibble(time = 1:num_time_steps,
+       as_tibble(initial_forecast)) %>% 
+  pivot_longer(cols = -time, names_to = "ensemble", values_to = "initial")
+
+PF.forecasts.df<-left_join(assimilated.df, initial.df, by=c("time", "ensemble"))
+PF.forecasts.df$age50<-PF.forecasts.df$time + 49
+
+
+df.CI<-PF.forecasts.df %>% group_by(age50) %>% 
+  summarise(mean.assimilated = mean(assimilated),
+            upper.assimilated = quantile(assimilated, 0.95),
+            lower.assimilated = quantile(assimilated, 0.05),
+            mean.init = mean(initial), 
+            upper.init = quantile(initial, 0.95), 
+            lower.init = quantile(initial, 0.05))
+
+df.CI %>% #filter(age50>=60) %>% 
+  ggplot() +
+  geom_line(aes(x = age50, y = mean.assimilated), color="blue")+
+  geom_line(aes(x = age50, y = mean.init), color="red")+
+  geom_ribbon(aes(x= age50, ymin = lower.assimilated, ymax = upper.assimilated), alpha = 0.2, fill="blue") +
+  geom_ribbon(aes(x=age50, ymin = lower.init, ymax = upper.init), alpha = 0.2, fill="red") +
+  geom_point(data= new_data, aes(x=age, y=biomass))+
+  labs(x = "Age (years)", y = "Aboveground Biomass (gC/m2)") +
+  theme_bw()
+#QUESTION: DO YOU WANT THE GRAPH ONLY 60-70? AND THEREFORE ONLY SHOWING THE SECOND ASSIMILATED DATA POINT? 
 ```
+Evaluation: At age 60, the particles and their 90% confidence intervals do not overlap because the observed data point is far below the biomass distribution at age 50. The model wants to return to that mean (around 6022 gC/m2), so the particles after data assimilation begin increasing towards age 70. 
+
 
 ### Part 5:
 
-Answer the follow question
+Question: How did assimilating data influence your forecast for ages 60 to 70? Consider both the mean and uncertainty in your answer.
 
-How did assimilating data influence your forecast for ages 60 to 70? Consider both the mean and uncertainty in your answer.
+Answer: Assimilating data lowered the particle mean because both data points were lower than the mean of the initial distribution at age 50. Both models want to maintain a mean of that initial value around 6022 gC/m2, so without assimilated data after age 60, both models trend toward that mean again. Therefore, the model confidence intervals overlap by the end of the forecast period, but the mean for the forecast with assimilated data is still lower than the initial forecast. By age 70, the upper quantile of the data-assimilated particles overlaps the lower quantile of the initial particles. 
+At observed data points, the uncertainty in the data-assimilation forecast decreases, so forecast uncertainty increases from age 60 to 70. Conversely, the uncertainty of the initial model is relatively constant between ages 60 and 70 because there is no added information to increase certainty at any point in the forecast horizon. 
