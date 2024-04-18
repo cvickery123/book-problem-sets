@@ -119,42 +119,6 @@ x_prior <- x
 
 x[1, ] <- rnorm(num_particles, mean = y[1], sd = sd_obs)
 x_prior[1, ] <- x[1, ]
-
-### resampling bootstrap particle filter
-
-for(t in 2:num_time_steps){
-  
-  ## forward step
-  for(m in 1:num_particles){
-    previousbiomass<-x[t - 1, m  ]
-    x[t, m ] <- previousbiomass + g.mean - u.mean*previousbiomass + rnorm(1, mean = 0, sd = sd_add)
-  }
-  
-  x_prior[t, ] <- x[t, ]
- 
-  ## analysis step
-  if(!is.na(y[t])){ 
-
-      ## calculate Likelihood (weights)
-      wt <- dnorm(y[t], mean = x[t, ], sd = sd_obs)    ## calculate likelihood (weight)
-      
-      wt_norm <- wt / sum(wt)
-      
-      ## resample ensemble members in proportion to their weight
-      resample_index <- sample(1:num_particles, num_particles, replace = TRUE, prob = wt_norm) 
-      
-      x[t, ] <- x[t, resample_index]  ## update state
-    }
-}
-
-tibble(time = 1:num_time_steps,
-       as_tibble(x)) %>% 
-  pivot_longer(cols = -time, names_to = "ensemble", values_to = "x") |> 
-  #mutate(x = exp(x)) |> 
-  ggplot(aes(x = time, y = x, group = factor(ensemble))) +
-  geom_line()
-  labs(x = "time", y = "biomass") +
-  theme_bw()
 ```
 
 #### Step 2: Run particle filter
@@ -162,7 +126,33 @@ tibble(time = 1:num_time_steps,
 Write the code and run the particle filter based on the examples from the lecture. You will need to include the process model that is in the NIMBLE code above.
 
 ```{r}
-#ADD PF CODE HERE
+### resampling bootstrap particle filter
+
+for(t in 2:num_time_steps){
+  
+  ## forward step
+  for(m in 1:num_particles){
+    #x[t, m ] <- x[t - 1, m  ] + rnorm(1, mean = 0, sd = sd_add)
+    previousbiomass<-x[t - 1, m  ]
+    newbiomass<- previousbiomass + g.mean - u.mean*previousbiomass 
+    x[t, m ]<- newbiomass + rnorm(1, mean = 0, sd = sd_add)
+  } #FATAL ERROR HAPPENING HERE
+  
+  x_prior[t, ] <- x[t, ]
+ 
+  # analysis step
+   if(!is.na(y[t])){ 
+       ## calculate Likelihood (weights)
+       wt <- dnorm(y[t], mean = x[t, ], sd = sd_obs)    ## calculate likelihood (weight)
+       
+       wt_norm <- wt / sum(wt)
+       
+       ## resample ensemble members in proportion to their weight
+       resample_index <- sample(1:num_particles, num_particles, replace = TRUE, prob = wt_norm) 
+       
+       x[t, ] <- x[t, resample_index]  ## update state
+     }
+}
 ```
 
 #### Step 3: Visualize particle filter output
@@ -170,7 +160,25 @@ Write the code and run the particle filter based on the examples from the lectur
 Generate a plot that visualizes the output of the PF (see examples from the lecture). Your plot must have age on the x-axis and biomass on the y-axis with different lines for the particles.
 
 ```{r}
-# ADD VISUALIZATION CODE HERE
+xL<-tibble(time = 1:num_time_steps,
+       as_tibble(x)) %>% 
+  pivot_longer(cols = -time, names_to = "ensemble", values_to = "x")
+xL$age<-xL$time/365
+
+# daysin20years<-9867
+# years20<-x[1:daysin20years, ]
+# years20L<-tibble(time = 1:daysin20years,
+#        as_tibble(years20)) %>% 
+#   pivot_longer(cols = -time, names_to = "ensemble", values_to = "x")
+# years20L$age<-years20L$time/365
+
+
+xL %>% filter(age<=20) %>%
+  ggplot(aes(x = age, y = x, group = factor(ensemble), color=ensemble)) +
+  geom_line(show.legend = F)+
+  labs(x = "age (years)", y = "aboveground biomass (gC/m2)") +
+  theme_bw()+
+  geom_hline(yintercept=6022, linetype=2)
 ```
 
 #### Step 4: Save PF output
@@ -178,7 +186,7 @@ Generate a plot that visualizes the output of the PF (see examples from the lect
 use this code to save your PF output as the object `initial_forecast`
 
 ```{r}
-
+initial_forecast<-x
 ```
 
 ### Part 3:
