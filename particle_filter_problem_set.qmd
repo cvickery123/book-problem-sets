@@ -59,14 +59,14 @@ ggplot(plot_data, aes(x = datetime, y = biomass)) +
 The following model was used to estimate the posterior distributions of the parameters using a Bayesian framework.
 
 ```         
-sim_dates <- seq(as_date("1950-01-01"), length.out = 50, by = "1 year)
+sim_dates <- seq(as_date("1950-01-01"), length.out = 50, by = "1 year")
 biomass[1, ] <- 0
 
 for(t in 2:length(sim_dates)){
 
   for(i in 1:num_particles){
 
-    biomass_predicted <- biomass[t+1, i] + param$g - param$u
+    biomass_predicted <- biomass[t-1, i] + param$g - param$u * biomass[t-1, i]
 
     biomass[t, i] <- rnorm(1, mean = biomass_predicted , sd = param$sd_add)
   }
@@ -99,13 +99,14 @@ Be sure to:
 
 ```{r}
 num_particles <- 25
+num_time_steps <- 21
 
-y <- df$age50_biomass
+# sim_dates <- seq(as_date("1950-01-01"), length.out = 50, by = "1 year")
+# biomass<- array(NA, dim=c(length(sim_dates), num_particles))
 
-num_time_steps <- length(y)
 
-#This sets all the observations to NA after the first
-y[2:num_time_steps] <- NA
+y <- array(NA, dim=c(length(num_time_steps), num_particles))
+
 
 sd_init <- sd(y)
 sd_add <- mean(df$sd_add)
@@ -116,8 +117,8 @@ u.mean<-mean(df$u)
 
 x <- array(NA, dim = c(num_time_steps, num_particles))
 x_prior <- x 
-
-x[1, ] <- rnorm(num_particles, mean = y[1], sd = sd_obs)
+x[1, ]<-sample(df$age50_biomass, num_particles, replace=T)
+#x[1, ] <- rnorm(num_particles, mean = y[1], sd = sd_obs)
 x_prior[1, ] <- x[1, ]
 ```
 
@@ -163,22 +164,14 @@ Generate a plot that visualizes the output of the PF (see examples from the lect
 xL<-tibble(time = 1:num_time_steps,
        as_tibble(x)) %>% 
   pivot_longer(cols = -time, names_to = "ensemble", values_to = "x")
-xL$age<-xL$time/365
+xL$age50<-xL$time + 49
 
-# daysin20years<-9867
-# years20<-x[1:daysin20years, ]
-# years20L<-tibble(time = 1:daysin20years,
-#        as_tibble(years20)) %>% 
-#   pivot_longer(cols = -time, names_to = "ensemble", values_to = "x")
-# years20L$age<-years20L$time/365
-
-
-xL %>% filter(age<=20) %>%
-  ggplot(aes(x = age, y = x, group = factor(ensemble), color=ensemble)) +
+xL %>% 
+  ggplot(aes(x = age50, y = x, group = factor(ensemble))) +
   geom_line(show.legend = F)+
-  labs(x = "age (years)", y = "aboveground biomass (gC/m2)") +
+  labs(x = "age", y = "aboveground biomass (gC/m2)") +
   theme_bw()+
-  geom_hline(yintercept=6022, linetype=2)
+  geom_hline(yintercept=6022, color="red")
 ```
 
 #### Step 4: Save PF output
@@ -196,7 +189,7 @@ Now we have new data!
 ```{r}
 #| warning: false
 
-new_data <- read_csv("https://github.com/frec-5174/eco4cast-in-R-book/blob/main/data/PF_data2.csv", show_col_types = FALSE)
+new_data <- read_csv("https://github.com/frec-5174/eco4cast-in-R-book/raw/main/data/PF_data2.csv", show_col_types = FALSE)
 
 ggplot(new_data, aes(x = datetime, y = biomass)) +
   geom_point() +
@@ -209,7 +202,22 @@ ggplot(new_data, aes(x = datetime, y = biomass)) +
 Using the new data, repeat the PF set up in Part 2 Step 1. You will be starting at age 50 just like above.
 
 ```{r}
-#ADD CODE TO SET UP PF HERE
+num_particles <- 25
+num_time_steps <- 21
+
+sd_init <- sd(y)
+sd_add <- mean(df$sd_add)
+sd_obs <- 200
+g.mean<-mean(df$g)
+u.mean<-mean(df$u)
+
+y <- array(NA, dim=c(length(num_time_steps), num_particles))
+y[c(6, 11)] <- new_data$biomass[c(6, 11)]
+
+x <- array(NA, dim = c(num_time_steps, num_particles))
+x_prior <- x 
+x[1, ]<-sample(df$age50_biomass, num_particles, replace=T)
+x_prior[1, ] <- x[1, ]
 ```
 
 #### Step 2: Run particle filter using the new data
@@ -217,7 +225,31 @@ Using the new data, repeat the PF set up in Part 2 Step 1. You will be starting 
 Using the new data, run the the PF again. This will be the same code as in Part 2 Step 2 (just copy and paste)
 
 ```{r}
-#COPY AND PASTE PF CODE FROM ABOVE
+for(t in 2:num_time_steps){
+  
+  ## forward step
+  for(m in 1:num_particles){
+    #x[t, m ] <- x[t - 1, m  ] + rnorm(1, mean = 0, sd = sd_add)
+    previousbiomass<-x[t - 1, m  ]
+    newbiomass<- previousbiomass + g.mean - u.mean*previousbiomass 
+    x[t, m ]<- newbiomass + rnorm(1, mean = 0, sd = sd_add)
+  } #FATAL ERROR HAPPENING HERE
+  
+  x_prior[t, ] <- x[t, ]
+ 
+  # analysis step
+   if(!is.na(y[t])){ 
+       ## calculate Likelihood (weights)
+       wt <- dnorm(y[t], mean = x[t, ], sd = sd_obs)    ## calculate likelihood (weight)
+       
+       wt_norm <- wt / sum(wt)
+       
+       ## resample ensemble members in proportion to their weight
+       resample_index <- sample(1:num_particles, num_particles, replace = TRUE, prob = wt_norm) 
+       
+       x[t, ] <- x[t, resample_index]  ## update state
+     }
+}
 ```
 
 #### Step 3: Visualize PF output
@@ -225,13 +257,22 @@ Using the new data, run the the PF again. This will be the same code as in Part 
 Generate a plot that visualizes the output of the PF (see examples from the lecture). Your plot must have age on the x-axis and biomass on the y-axis with different lines for the particles. Your observations from the new data must be on the plot.
 
 ```{r}
-#ADD VISUALIZATION CODE HERE
+xL<-tibble(time = 1:num_time_steps,
+       as_tibble(x)) %>% 
+  pivot_longer(cols = -time, names_to = "ensemble", values_to = "x")
+xL$age50<-xL$time + 49
+
+ggplot() +
+  geom_line(data=xL, aes(x = age50, y = x, group = factor(ensemble)))+
+  geom_point(data= new_data, aes(x=age, y=biomass))+
+  labs(x = "age", y = "aboveground biomass (gC/m2)") +
+  theme_bw()
 ```
 
 #### Step 4: Save output
 
 ```{r}
-
+assimilated_forecast<-x
 ```
 
 ### Part 4:
