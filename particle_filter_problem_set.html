@@ -187,18 +187,17 @@ for(t in 2:length(sim_dates)){
 <span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">array</span>(<span class="cn">NA</span>, <span class="at">dim=</span><span class="fu">c</span>(<span class="fu">length</span>(num_time_steps), num_particles))</span>
 <span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># QUESTION, IS SD_INIT THE SD(Y) OR SD(DF$AGE50_BIOMASS)?</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>sd_init <span class="ot">&lt;-</span> <span class="fu">sd</span>(df<span class="sc">$</span>age50_biomass)</span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>sd_add <span class="ot">&lt;-</span> <span class="fu">mean</span>(df<span class="sc">$</span>sd_add)</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>sd_obs <span class="ot">&lt;-</span> <span class="dv">200</span></span>
-<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>g.mean<span class="ot">&lt;-</span><span class="fu">mean</span>(df<span class="sc">$</span>g)</span>
-<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>u.mean<span class="ot">&lt;-</span><span class="fu">mean</span>(df<span class="sc">$</span>u)</span>
-<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">array</span>(<span class="cn">NA</span>, <span class="at">dim =</span> <span class="fu">c</span>(num_time_steps, num_particles))</span>
-<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>x_prior <span class="ot">&lt;-</span> x </span>
-<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>x[<span class="dv">1</span>, ]<span class="ot">&lt;-</span><span class="fu">sample</span>(df<span class="sc">$</span>age50_biomass, num_particles, <span class="at">replace=</span>T)</span>
-<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>x_prior[<span class="dv">1</span>, ] <span class="ot">&lt;-</span> x[<span class="dv">1</span>, ]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>sd_init <span class="ot">&lt;-</span> <span class="fu">sd</span>(df<span class="sc">$</span>age50_biomass)</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>sd_add <span class="ot">&lt;-</span> <span class="fu">mean</span>(df<span class="sc">$</span>sd_add)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>sd_obs <span class="ot">&lt;-</span> <span class="dv">200</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>g.mean<span class="ot">&lt;-</span><span class="fu">mean</span>(df<span class="sc">$</span>g)</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>u.mean<span class="ot">&lt;-</span><span class="fu">mean</span>(df<span class="sc">$</span>u)</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">array</span>(<span class="cn">NA</span>, <span class="at">dim =</span> <span class="fu">c</span>(num_time_steps, num_particles))</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>x_prior <span class="ot">&lt;-</span> x </span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>x[<span class="dv">1</span>, ]<span class="ot">&lt;-</span><span class="fu">sample</span>(df<span class="sc">$</span>age50_biomass, num_particles, <span class="at">replace=</span>T)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>x_prior[<span class="dv">1</span>, ] <span class="ot">&lt;-</span> x[<span class="dv">1</span>, ]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 </section>
 <section id="step-2-run-particle-filter" class="level4">
@@ -402,7 +401,8 @@ for(t in 2:length(sim_dates)){
 <span id="cb17-26"><a href="#cb17-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_ribbon</span>(<span class="fu">aes</span>(<span class="at">x=</span>age50, <span class="at">ymin =</span> lower.init, <span class="at">ymax =</span> upper.init), <span class="at">alpha =</span> <span class="fl">0.2</span>, <span class="at">fill=</span><span class="st">"red"</span>) <span class="sc">+</span></span>
 <span id="cb17-27"><a href="#cb17-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_point</span>(<span class="at">data=</span> new_data, <span class="fu">aes</span>(<span class="at">x=</span>age, <span class="at">y=</span>biomass))<span class="sc">+</span></span>
 <span id="cb17-28"><a href="#cb17-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">labs</span>(<span class="at">x =</span> <span class="st">"Age (years)"</span>, <span class="at">y =</span> <span class="st">"Aboveground Biomass (gC/m2)"</span>) <span class="sc">+</span></span>
-<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb17-29"><a href="#cb17-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_bw</span>() <span class="sc">+</span> </span>
+<span id="cb17-30"><a href="#cb17-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_vline</span>(<span class="at">xintercept=</span><span class="dv">60</span>, <span class="at">linetype=</span><span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -410,7 +410,6 @@ for(t in 2:length(sim_dates)){
 </figure>
 </div>
 </div>
-<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="co">#QUESTION: DO YOU WANT THE GRAPH ONLY 60-70? AND THEREFORE ONLY SHOWING THE SECOND ASSIMILATED DATA POINT? </span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div>
 <p>Evaluation: At age 60, the particles and their 90% confidence intervals do not overlap because the observed data point is far below the biomass distribution at age 50. The model wants to return to that mean (around 6022 gC/m2), so the particles after data assimilation begin increasing towards age 70.</p>
 </section>

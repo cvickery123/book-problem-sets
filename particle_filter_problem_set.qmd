@@ -103,7 +103,6 @@ num_time_steps <- 21
 
 y <- array(NA, dim=c(length(num_time_steps), num_particles))
 
-# QUESTION, IS SD_INIT THE SD(Y) OR SD(DF$AGE50_BIOMASS)?
 sd_init <- sd(df$age50_biomass)
 sd_add <- mean(df$sd_add)
 sd_obs <- 200
@@ -303,8 +302,8 @@ df.CI %>% #filter(age50>=60) %>%
   geom_ribbon(aes(x=age50, ymin = lower.init, ymax = upper.init), alpha = 0.2, fill="red") +
   geom_point(data= new_data, aes(x=age, y=biomass))+
   labs(x = "Age (years)", y = "Aboveground Biomass (gC/m2)") +
-  theme_bw()
-#QUESTION: DO YOU WANT THE GRAPH ONLY 60-70? AND THEREFORE ONLY SHOWING THE SECOND ASSIMILATED DATA POINT? 
+  theme_bw() + 
+  geom_vline(xintercept=60, linetype=2)
 ```
 Evaluation: At age 60, the particles and their 90% confidence intervals do not overlap because the observed data point is far below the biomass distribution at age 50. The model wants to return to that mean (around 6022 gC/m2), so the particles after data assimilation begin increasing towards age 70. 
 
