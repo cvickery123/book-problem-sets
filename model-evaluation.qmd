@@ -72,7 +72,8 @@ df_with_baselines %>% filter(reference_datetime == "2024-04-01") %>%
   geom_line(aes(x=datetime, y=median, group=model_id, color=model_id), linetype=2)+ 
   facet_wrap(vars(site_id)) + 
   theme_bw() + 
-  labs(x="Date Time", y = "Mean", title="Forecasts from 2024-04-01", subtitle="Solid line = mean; Dashed line = median")
+  labs(x="Date Time", y = "Mean", title="Forecasts from 2024-04-01 with 80% CI", subtitle="Solid line = mean; Dashed line = median") + 
+  geom_point(aes(x=datetime, y=observation), color="black", size=0.5)
 
 ```
 
@@ -80,28 +81,49 @@ df_with_baselines %>% filter(reference_datetime == "2024-04-01") %>%
 
 Based on visual inspection of your plot, how do the median of model differ in how they represent the observations.
 
-
+The median of the persistence model holds steadily at one value, despite ovservation values. The climatology median increases over the forecast horizon at both sites, which matches the linear trend of the observations. The median of climatology seems to be reverse of the observations at SUGG: the median goes up when observations go down, and vice versa. However, the values of the observations are broadly captured by the 80% CI. My model (lm_AT_WTL_WS) follows more closely the shape of the observed data but at the wrong values, so my CI does not capture the majority of observed values. 
 
 ### Question 3
 
 Based on visual inspection of your plot, how does the uncertainty of each model forecasts differ in capacity to represent the observations.
 
+Because the persistance model has the greatest uncertainty, it captures the most observed data values compared to the other models. While my model follows a similar shape to the data, most of the observed data are not captured by the confidence interval because the median values are off. The climatology model captures the majority of data points within the uncertainty bounds, even if the observed data do not follow the same trend shape as the model's median. 
+
 ### Question 4
 
-Calculate the mean CRPS for the three models(averaged across all horizons, sites, and reference_datetimes). Which model has the lower score?
+Calculate the mean CRPS for the three models (averaged across all horizons, sites, and reference_datetimes). Which model has the lower score?
 
 ```{r}
-
-
+df_with_baselines |> 
+  select(model_id, crps, datetime, reference_datetime, site_id) |> 
+  pivot_wider(names_from = model_id, values_from = crps) |> 
+  na.omit() |> 
+  pivot_longer(-c(datetime, reference_datetime, site_id), names_to = "model_id", values_to = "crps") |> 
+  summarise(mean_crps = mean(crps), .by = c("model_id")) |> 
+  ggplot(aes(x = model_id, y = mean_crps)) +
+  geom_bar(stat="identity") + 
+  theme_bw() + 
+  labs(y="Mean CRPS", x="Model ID")
 ```
+
+Climatology has the lowest mean CRPS, and my model performs even worse than the persistence model. 
 
 ### Question 5
 
 Plot the mean CRPS vs horizon for all three models. How does the performance change as you forecast further in the future?
 
 ```{r}
-
-
+df_with_baselines |> 
+  mutate(horizon = as.numeric(datetime - reference_datetime) / 86400) |> 
+  select(model_id, horizon, datetime, reference_datetime, crps, site_id) |> 
+  pivot_wider(names_from = model_id, values_from = crps) |> 
+  na.omit() |> 
+  pivot_longer(-c(horizon, datetime, reference_datetime, site_id), names_to = "model_id", values_to = "crps") |> 
+  summarize(mean_crps = mean(crps), .by = c("model_id", "horizon")) |> 
+  ggplot(aes(x = horizon, y = mean_crps, color = model_id)) + 
+  geom_line() + 
+  theme_bw()
+##problem with horizon x axis
 ```
 
 ### Question 6
