@@ -1,6 +1,8 @@
 ---
 title: "Particle filter"
-format: html
+format: 
+  html:
+      embed-resources: true
 editor: visual
 ---
 
@@ -98,7 +100,7 @@ Be sure to:
 -   The standard deviation for the observations (`sd_data`) is 200.
 
 ```{r}
-num_particles <- 25
+num_particles <- 500
 num_time_steps <- 21
 
 y <- array(NA, dim=c(length(num_time_steps), num_particles))
@@ -195,7 +197,7 @@ ggplot(new_data, aes(x = datetime, y = biomass)) +
 Using the new data, repeat the PF set up in Part 2 Step 1. You will be starting at age 50 just like above.
 
 ```{r}
-num_particles <- 25
+num_particles <- 500
 num_time_steps <- 21
 
 sd_init <- sd(df$age50_biomass)
@@ -257,7 +259,7 @@ xL$age50<-xL$time + 49
 
 ggplot() +
   geom_line(data=xL, aes(x = age50, y = x, group = factor(ensemble)))+
-  geom_point(data= new_data, aes(x=age, y=biomass))+
+  geom_point(data= new_data, aes(x=age, y=biomass), color="red")+
   labs(x = "Age (years)", y = "Aboveground Biomass (gC/m2)") +
   theme_bw()
 ```
