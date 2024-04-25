@@ -10,7 +10,7 @@ editor: visual
 
 You will be using your model_id, climatology and persistence in the analysis below. You will be using site_ids BARC and SUGG (since they have year-around data)
 
-Resources: 
+Resources:
 
 <https://frec-5174.github.io/eco4cast-in-R-book/visualizing.html>
 
@@ -20,20 +20,67 @@ Find your forecast scores here:
 
 <https://radiantearth.github.io/stac-browser/#/external/raw.githubusercontent.com/eco4cast/neon4cast-ci/main/catalog/scores/collection.json>
 
-climatalogy and persistenceRW are the null model_id
+climatology and persistenceRW are the null model_id
+###Loading data
+```{r}
+library(arrow)
+library(tidyverse)
+library(ggplot2)
+
+# all_results <- arrow::open_dataset("s3://anonymous@bio230014-bucket01/challenges/scores/parquet/project_id=neon4cast/duration=P1D/variable=temperature/model_id=lm_AT_WTL_WS?endpoint_override=sdsc.osn.xsede.org")
+# myresults <- all_results |> dplyr::collect()
+# myresults$model_id<-"myresults"
+# 
+# all_results_pers <- arrow::open_dataset("s3://anonymous@bio230014-bucket01/challenges/scores/parquet/project_id=neon4cast/duration=P1D/variable=temperature/model_id=persistenceRW?endpoint_override=sdsc.osn.xsede.org")
+# persistance <- all_results_pers |> dplyr::collect()
+# persistance$model_id<-"persistance"
+# 
+# all_results_clim <- arrow::open_dataset("s3://anonymous@bio230014-bucket01/challenges/scores/parquet/project_id=neon4cast/duration=P1D/variable=temperature/model_id=climatology?endpoint_override=sdsc.osn.xsede.org")
+# climatology <- all_results_clim |> dplyr::collect()
+# climatology$model_id<-"climatology"
+# 
+# allmodels<-rbind(myresults, persistance, climatology)
+# allmodels$reference_datetime <- as.Date(allmodels$reference_datetime)
+# allmodels$datetime <- as.Date(allmodels$datetime)
+# allmodels$pub_datetime <- as.Date(allmodels$pub_datetime)
+# allmodels$date <- as.Date(allmodels$date)
+
+
+all_results <- arrow::open_dataset("s3://anonymous@bio230014-bucket01/challenges/scores/parquet/project_id=neon4cast/duration=P1D/variable=temperature?endpoint_override=sdsc.osn.xsede.org")
+df_with_baselines <- all_results |> 
+  filter(site_id %in% c("BARC", "SUGG"),
+         reference_datetime > as_date("2024-03-01"), 
+         model_id %in% c("lm_AT_WTL_WS", "climatology", "persistenceRW")) |> 
+  collect()
+
+df_with_baselines$reference_datetime <- as.Date(df_with_baselines$reference_datetime)
+df_with_baselines$datetime <- as.Date(df_with_baselines$datetime)
+df_with_baselines$pub_datetime <- as.Date(df_with_baselines$pub_datetime)
+df_with_baselines$date <- as.Date(df_with_baselines$date)
+```
 
 ### Question 1
 
-Plot climatology, persistence, and your model for a single forecast day (one reference_datetime) on the same plot.  Use geom_ribbon to plot the uncertainty, geom_line to plot the median, and geom_point to plot the observations.
+Plot climatology, persistence, and your model for a single forecast day (one reference_datetime) on the same plot. Use geom_ribbon to plot the uncertainty, geom_line to plot the median, and geom_point to plot the observations.
 
 ```{r}
 
+df_with_baselines %>% filter(reference_datetime == "2024-04-01") %>% 
+  ggplot() + 
+  geom_line(aes(x=datetime, y=mean, group=model_id, color=model_id)) + 
+  geom_ribbon(aes(x=datetime, ymin=quantile10, ymax=quantile90, group=model_id, fill=model_id), alpha = 0.2) + 
+  geom_line(aes(x=datetime, y=median, group=model_id, color=model_id), linetype=2)+ 
+  facet_wrap(vars(site_id)) + 
+  theme_bw() + 
+  labs(x="Date Time", y = "Mean", title="Forecasts from 2024-04-01", subtitle="Solid line = mean; Dashed line = median")
 
 ```
 
 ### Question 2
 
 Based on visual inspection of your plot, how do the median of model differ in how they represent the observations.
+
+
 
 ### Question 3
 
@@ -50,7 +97,7 @@ Calculate the mean CRPS for the three models(averaged across all horizons, sites
 
 ### Question 5
 
-Plot the mean CRPS vs horizon for all three models.  How does the performance change as you forecast further in the future?
+Plot the mean CRPS vs horizon for all three models. How does the performance change as you forecast further in the future?
 
 ```{r}
 
@@ -59,7 +106,7 @@ Plot the mean CRPS vs horizon for all three models.  How does the performance ch
 
 ### Question 6
 
-Plot the mean CRPS separately for each site_id for all three models.  How does performance differ between sites?
+Plot the mean CRPS separately for each site_id for all three models. How does performance differ between sites?
 
 ```{r}
 
@@ -68,8 +115,4 @@ Plot the mean CRPS separately for each site_id for all three models.  How does p
 
 ### Question 7
 
-Which forecasting best practices are addressed with your forecasts and the analysis above?  See <https://frec-5174.github.io/eco4cast-in-R-book/best-practices.html>.
-
-
-
-
+Which forecasting best practices are addressed with your forecasts and the analysis above? See <https://frec-5174.github.io/eco4cast-in-R-book/best-practices.html>.
