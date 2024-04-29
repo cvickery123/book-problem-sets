@@ -114,7 +114,7 @@ Plot the mean CRPS vs horizon for all three models. How does the performance cha
 
 ```{r}
 df_with_baselines |> 
-  mutate(horizon = as.numeric(datetime - reference_datetime) / 86400) |> 
+  mutate(horizon = as.numeric(datetime - reference_datetime)) |> 
   select(model_id, horizon, datetime, reference_datetime, crps, site_id) |> 
   pivot_wider(names_from = model_id, values_from = crps) |> 
   na.omit() |> 
@@ -122,18 +122,30 @@ df_with_baselines |>
   summarize(mean_crps = mean(crps), .by = c("model_id", "horizon")) |> 
   ggplot(aes(x = horizon, y = mean_crps, color = model_id)) + 
   geom_line() + 
-  theme_bw()
-##problem with horizon x axis
+  theme_bw() + 
+  labs(y="Mean CRPS", x="Horizon (days)")
 ```
+
+Very early on in the forecast horizon, my model performs the best until about 6 days out from the start date. The persistence model also performs better than climatology for the first three days. After one week into the forecast horizon, the climatology model performs extraordinarily better than the other models. My model performs the worst after day 11 in the forecast horizon. 
 
 ### Question 6
 
 Plot the mean CRPS separately for each site_id for all three models. How does performance differ between sites?
 
 ```{r}
-
-
+df_with_baselines |> 
+  select(model_id, crps, datetime, reference_datetime, site_id) |> 
+  pivot_wider(names_from = model_id, values_from = crps) |> 
+  na.omit() |> 
+  pivot_longer(-c(datetime, reference_datetime, site_id), names_to = "model_id", values_to = "crps") |> 
+  summarise(mean_crps = mean(crps), .by = c("model_id", "site_id")) |> 
+  ggplot(aes(x = model_id, y = mean_crps)) +
+  geom_bar(stat="identity") + 
+  theme_bw() + 
+  labs(y="Mean CRPS", x="Model ID") + 
+  facet_wrap(vars(site_id))
 ```
+All models perform better at BARC than SUGG, and climatology still performs the best at each site. My model performs the worst at each site, but the difference in mean CRPS between climatology and my model is slightly less for BARC (0.30) than for SUGG (0.39). 
 
 ### Question 7
 
