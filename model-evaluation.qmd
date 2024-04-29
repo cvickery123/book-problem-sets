@@ -10,40 +10,19 @@ editor: visual
 
 You will be using your model_id, climatology and persistence in the analysis below. You will be using site_ids BARC and SUGG (since they have year-around data)
 
-Resources:
-
-<https://frec-5174.github.io/eco4cast-in-R-book/visualizing.html>
-
-<https://frec-5174.github.io/eco4cast-in-R-book/process-model-forecast-evaluation.html>
-
 Find your forecast scores here:
 
 <https://radiantearth.github.io/stac-browser/#/external/raw.githubusercontent.com/eco4cast/neon4cast-ci/main/catalog/scores/collection.json>
 
 climatology and persistenceRW are the null model_id
-###Loading data
+
+### Loading data
 ```{r}
+#| message: FALSE
+#| warning: FALSE
 library(arrow)
 library(tidyverse)
 library(ggplot2)
-
-# all_results <- arrow::open_dataset("s3://anonymous@bio230014-bucket01/challenges/scores/parquet/project_id=neon4cast/duration=P1D/variable=temperature/model_id=lm_AT_WTL_WS?endpoint_override=sdsc.osn.xsede.org")
-# myresults <- all_results |> dplyr::collect()
-# myresults$model_id<-"myresults"
-# 
-# all_results_pers <- arrow::open_dataset("s3://anonymous@bio230014-bucket01/challenges/scores/parquet/project_id=neon4cast/duration=P1D/variable=temperature/model_id=persistenceRW?endpoint_override=sdsc.osn.xsede.org")
-# persistance <- all_results_pers |> dplyr::collect()
-# persistance$model_id<-"persistance"
-# 
-# all_results_clim <- arrow::open_dataset("s3://anonymous@bio230014-bucket01/challenges/scores/parquet/project_id=neon4cast/duration=P1D/variable=temperature/model_id=climatology?endpoint_override=sdsc.osn.xsede.org")
-# climatology <- all_results_clim |> dplyr::collect()
-# climatology$model_id<-"climatology"
-# 
-# allmodels<-rbind(myresults, persistance, climatology)
-# allmodels$reference_datetime <- as.Date(allmodels$reference_datetime)
-# allmodels$datetime <- as.Date(allmodels$datetime)
-# allmodels$pub_datetime <- as.Date(allmodels$pub_datetime)
-# allmodels$date <- as.Date(allmodels$date)
 
 
 all_results <- arrow::open_dataset("s3://anonymous@bio230014-bucket01/challenges/scores/parquet/project_id=neon4cast/duration=P1D/variable=temperature?endpoint_override=sdsc.osn.xsede.org")
@@ -64,6 +43,8 @@ df_with_baselines$date <- as.Date(df_with_baselines$date)
 Plot climatology, persistence, and your model for a single forecast day (one reference_datetime) on the same plot. Use geom_ribbon to plot the uncertainty, geom_line to plot the median, and geom_point to plot the observations.
 
 ```{r}
+#| message: FALSE
+#| warning: FALSE
 
 df_with_baselines %>% filter(reference_datetime == "2024-04-01") %>% 
   ggplot() + 
@@ -72,16 +53,15 @@ df_with_baselines %>% filter(reference_datetime == "2024-04-01") %>%
   geom_line(aes(x=datetime, y=median, group=model_id, color=model_id), linetype=2)+ 
   facet_wrap(vars(site_id)) + 
   theme_bw() + 
-  labs(x="Date Time", y = "Mean", title="Forecasts from 2024-04-01 with 80% CI", subtitle="Solid line = mean; Dashed line = median") + 
+  labs(x="Date Time", y = "Water Temperature", title="Forecasts from 2024-04-01 with 80% CI", subtitle="Solid line = mean; Dashed line = median") + 
   geom_point(aes(x=datetime, y=observation), color="black", size=0.5)
-
 ```
 
 ### Question 2
 
 Based on visual inspection of your plot, how do the median of model differ in how they represent the observations.
 
-The median of the persistence model holds steadily at one value, despite ovservation values. The climatology median increases over the forecast horizon at both sites, which matches the linear trend of the observations. The median of climatology seems to be reverse of the observations at SUGG: the median goes up when observations go down, and vice versa. However, the values of the observations are broadly captured by the 80% CI. My model (lm_AT_WTL_WS) follows more closely the shape of the observed data but at the wrong values, so my CI does not capture the majority of observed values. 
+The median of the persistence model holds steadily at one value, despite observation values. The climatology median increases over the forecast horizon at both sites, which matches the linear trend of the observations. The median of climatology seems to be reverse of the observations at SUGG: the median goes up when observations go down, and vice versa. However, the values of the observations are broadly captured by the 80% CI. My model (lm_AT_WTL_WS) follows more closely the shape of the observed data but at the wrong values, so my CI does not capture the majority of observed values. 
 
 ### Question 3
 
@@ -94,6 +74,13 @@ Because the persistance model has the greatest uncertainty, it captures the most
 Calculate the mean CRPS for the three models (averaged across all horizons, sites, and reference_datetimes). Which model has the lower score?
 
 ```{r}
+df_with_baselines |> 
+  select(model_id, crps, datetime, reference_datetime, site_id) |> 
+  pivot_wider(names_from = model_id, values_from = crps) |> 
+  na.omit() |> 
+  pivot_longer(-c(datetime, reference_datetime, site_id), names_to = "model_id", values_to = "crps") |> 
+  summarise(mean_crps = mean(crps), .by = c("model_id"))
+
 df_with_baselines |> 
   select(model_id, crps, datetime, reference_datetime, site_id) |> 
   pivot_wider(names_from = model_id, values_from = crps) |> 
@@ -150,3 +137,5 @@ All models perform better at BARC than SUGG, and climatology still performs the 
 ### Question 7
 
 Which forecasting best practices are addressed with your forecasts and the analysis above? See <https://frec-5174.github.io/eco4cast-in-R-book/best-practices.html>.
+
+My model accomplishes most of the best practices suggested by Lewis et al (2022). It includes uncertainty, has an automated workflow, follows an iterative process, and through the forecast submission to NEON, makes data available and archives forecasts. This assignment and analysis compares modeling approaches and compares my forecast to null models. My forecast does not identify an end user or report forecast accuracy. To address the first of the missing best practices, an end user for my forecast could be fish hatcheries manager looking to introduce new fish stocks to the lakes. However, I would suggest they use a different forecast based on my forecast scores. 
